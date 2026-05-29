@@ -31,30 +31,43 @@ class AppRoutes {
   static const String reportes          = '/reportes';
   static const String historialFacturas = '/historialFacturas';
 
-  static const _rutasEmpleado = {vehiculos, perfil, home, login};
+  // Rutas que puede ver cualquier empleado logueado
+static const _rutasEmpleado = {
+  vehiculos, perfil, home, login
+};
 
-  static Route<dynamic> onGenerateRoute(RouteSettings settings) {
-    final name = settings.name ?? login;
+// Rutas que puede ver secretaria (+ las de empleado)
+static const _rutasSecretaria = {
+  vehiculos, perfil, home, login,
+  clientes, facturacion, historialFacturas, caja, historialTurnos, reportes
+};
+ static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+  final name = settings.name ?? login;
 
-    if (SessionService.rolActual.isNotEmpty &&
-        !SessionService.esAdmin &&
-        !_rutasEmpleado.contains(name)) {
-      return MaterialPageRoute(
-        builder: (_) => const VehiculosPage(),
-        settings: const RouteSettings(name: vehiculos),
-      );
+  if (SessionService.rolActual.isNotEmpty) {
+    // Mecánico solo ve vehículos y perfil
+    if (SessionService.esMecanico) {
+      const rutasMecanico = {vehiculos, perfil, home, login};
+      if (!rutasMecanico.contains(name)) {
+        return MaterialPageRoute(
+          builder: (_) => const VehiculosPage(),
+          settings: const RouteSettings(name: vehiculos),
+        );
+      }
     }
-
-    final builder = _builders[name];
-    if (builder != null) {
-      return MaterialPageRoute(builder: builder, settings: settings);
-    }
-
-    return MaterialPageRoute(
-      builder: (_) => const LoginPage(),
-      settings: const RouteSettings(name: login),
-    );
+    // Admin y Secretaria ven todo — no se restringe nada
   }
+
+  final builder = _builders[name];
+  if (builder != null) {
+    return MaterialPageRoute(builder: builder, settings: settings);
+  }
+
+  return MaterialPageRoute(
+    builder: (_) => const LoginPage(),
+    settings: const RouteSettings(name: login),
+  );
+}
 
   static final Map<String, WidgetBuilder> _builders = {
     historialFacturas: (_) => const HistorialFacturasPage(),
