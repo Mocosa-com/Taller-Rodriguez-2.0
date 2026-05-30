@@ -11,6 +11,7 @@ void mostrarModalEditarProducto(BuildContext context, Map<String, dynamic> produ
   final descripcionController = TextEditingController(text: producto['descripcion']?.toString() ?? '');
   final stockMinimoController = TextEditingController(text: producto['stock_minimo']?.toString() ?? '');
   final stockMaximoController = TextEditingController(text: producto['stock_maximo']?.toString() ?? '');
+  final skuController = TextEditingController(text: producto['sku']?.toString() ?? '');
   String? clasificacion = producto['clasificacion']?.toString();
   String? tipo = producto['tipo']?.toString();
   bool cargando = false;
@@ -87,10 +88,12 @@ void mostrarModalEditarProducto(BuildContext context, Map<String, dynamic> produ
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(child: _modalTextField('Precio de compra:', precioCompraController, prefix: '\$', keyboardType: TextInputType.number, formatters: [ValidadorPrecio()])),
+                         const SizedBox(height: 16),
+                         _modalTextField('SKU (código del producto):', skuController),
+                        const SizedBox(height: 16),
+                        Row(
+                        children: [
+                        Expanded(child: _modalTextField('Precio de compra:', precioCompraController,   prefix: '\$', keyboardType: TextInputType.number, formatters: [ValidadorPrecio()])),
                         const SizedBox(width: 16),
                         Expanded(child: _modalTextField('Precio de venta:', precioVentaController, prefix: '\$', keyboardType: TextInputType.number, formatters: [ValidadorPrecio()])),
                       ],
@@ -158,6 +161,7 @@ void mostrarModalEditarProducto(BuildContext context, Map<String, dynamic> produ
 
                         final resultado = await api.actualizarProducto(id, {
                           'nombre': nombreController.text,
+                          'sku': skuController.text.trim(),
                           'tipo': tipo,
                           'clasificacion': clasificacion,
                           'descripcion': descripcionController.text,
@@ -252,17 +256,25 @@ Widget _modalDropdownProveedor(String label, String? value, List<Map<String, dyn
       const SizedBox(height: 6),
       DropdownButtonFormField<String>(
         value: value != null && nombres.contains(value) ? value : null,
+        isExpanded: true,
         decoration: InputDecoration(
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
-        items: nombres.map((n) => DropdownMenuItem(value: n, child: Text(n))).toList(),
+        selectedItemBuilder: (context) => nombres.map((n) => Text(
+          n,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        )).toList(),
+        items: nombres.map((n) => DropdownMenuItem(
+          value: n,
+          child: Text(n, overflow: TextOverflow.ellipsis),
+        )).toList(),
         onChanged: onChanged,
       ),
     ],
   );
 }
-
 Widget _botonGuardar(String label, VoidCallback? onPressed) {
   return SizedBox(
     width: double.infinity,

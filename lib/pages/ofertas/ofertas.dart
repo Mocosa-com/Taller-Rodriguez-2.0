@@ -191,14 +191,16 @@ class _OfertasScreenState extends State<OfertasScreen> {
     }
   }
 
-  String _formatearFecha(String fechaStr) {
-    try {
-      final fecha = DateTime.parse(fechaStr);
-      return '${fecha.day.toString().padLeft(2, '0')}.${fecha.month.toString().padLeft(2, '0')}.${fecha.year}';
-    } catch (e) {
-      return fechaStr;
-    }
+ String _formatearFecha(String fechaStr) {
+  try {
+    final fecha = DateTime.parse(fechaStr);
+    final dia = fecha.day.toString().padLeft(2, '0');
+    final mes = fecha.month.toString().padLeft(2, '0');
+    return '$dia/$mes/${fecha.year}';
+  } catch (e) {
+    return fechaStr;
   }
+}
 
   bool _estaActiva(Map<String, dynamic> oferta) {
     final estado = (oferta['estado_oferta'] ?? '').toString().toLowerCase();

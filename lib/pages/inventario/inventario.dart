@@ -29,14 +29,58 @@ class InventarioPageState extends State<InventarioPage> {
   bool _hayFiltrosActivos = false;
   List<Map<String, dynamic>> _proveedores = [];
 
-  List<Map<String, dynamic>> _productos = [];
-  String? _idProveedorSeleccionado;
+    List<Map<String, dynamic>> _productos = [];
 
-  @override
+  // === Productos con stock bajo ===
+  List<Map<String, dynamic>> get _productosStockBajo => _productos
+      .where((p) =>
+          p['tipo']?.toString().toLowerCase() != 'servicio' &&
+          (int.tryParse(p['stock']?.toString() ?? '0') ?? 0) <=
+              (int.tryParse(p['stock_minimo']?.toString() ?? '0') ?? 0))
+      .toList();
+
+  // === Clasificaciones dinámicas (versión corregida) ===
+  List<String> get _clasificacionesOptions {
+    final Set<String> clasificaciones = {'Todos'};
+    
+    for (var p in _productos) {
+      final clasif = p['clasificacion']?.toString();
+      if (clasif != null && clasif.isNotEmpty) {
+        clasificaciones.add(clasif);
+      }
+    }
+    
+    final list = clasificaciones.toList()..sort();
+
+    // ✅ Seguridad: si el filtro actual no existe en las opciones, lo limpiamos
+    if (_filtroProducto != null && !_filtroProducto!.isEmpty && !list.contains(_filtroProducto)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _filtroProducto = null;
+          });
+        }
+      });
+    }
+
+    return list;
+  }
+
+  String? _idProveedorSeleccionado;
+   @override
   void initState() {
     super.initState();
     _cargarProductos();
     _cargarProveedores();
+    
+    // Limpiar filtro si es inválido al inicio
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_filtroProducto != null) {
+        setState(() {
+          _filtroProducto = null;
+        });
+      }
+    });
   }
 
   Future<void> _cargarProveedores() async {
@@ -145,6 +189,55 @@ class InventarioPageState extends State<InventarioPage> {
     return proveedor['nombre']?.toString() ?? '-';
   }
 
+  // === Cambio 3: Widget del banner de stock bajo ===
+  Widget _buildBannerStockBajo() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3CD),
+        border: Border.all(color: const Color(0xFFFFB300)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Color(0xFFE65100), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                '${_productosStockBajo.length} producto${_productosStockBajo.length > 1 ? 's' : ''} con stock bajo',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFE65100),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ..._productosStockBajo.map((p) => Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 28),
+                    const Icon(Icons.circle, size: 6, color: Color(0xFFE65100)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${p['nombre']} — Stock actual: ${p['stock']} / Mínimo: ${p['stock_minimo']}',
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF5D4037)),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isWide = MediaQuery.of(context).size.width > 1000;
@@ -193,16 +286,16 @@ class InventarioPageState extends State<InventarioPage> {
                                 label: 'Filtrar productos:',
                                 value: _filtroProducto,
                                 options: ['Todos', 'Aceites y fluidos', 'Frenos', 'Motor', 'Eléctrico', 'Suspensión', 'Transmisión', 'Carrocería', 'Accesorios'],
-                                onChanged: (val) {
-                                  setState(() {
-                                    if (val == 'Todos') {
-                                      _filtroProducto = null;
-                                    } else {
-                                      _filtroProducto = val;
-                                    }
-                                  });
-                                  _cargarProductos();
-                                },
+                               onChanged: (val) {
+  setState(() {
+    if (val == 'Todos' || val == null) {
+      _filtroProveedor = null;
+    } else {
+      _filtroProveedor = val;
+    }
+  });
+  _cargarProductos();
+},
                               ),
                               const SizedBox(width: 12),
                               FilterDropdown(
@@ -252,21 +345,28 @@ class InventarioPageState extends State<InventarioPage> {
                                 label: 'Filtrar por proveedor:',
                                 value: _filtroProveedor,
                                 options: ['Todos', ..._proveedores.map((p) => p['nombre']?.toString() ?? '')],
-                                onChanged: (val) {
-                                  setState(() {
-                                    if (val == 'Todos') {
-                                      _filtroProveedor = null;
-                                    } else {
-                                      _filtroProveedor = val;
-                                    }
-                                  });
-                                  _cargarProductos();
-                                },
+                               onChanged: (val) {
+  setState(() {
+    if (val == 'Todos' || val == null) {
+      _filtroProveedor = null;
+    } else {
+      _filtroProveedor = val;
+    }
+  });
+  _cargarProductos();
+},
                               ),
                             ],
                           ),
                   ),
                   const SizedBox(height: 20),
+
+                  // === Cambio 2: Banner de stock bajo ===
+                  if (_productosStockBajo.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 25),
+                      child: _buildBannerStockBajo(),
+                    ),
 
                   isWide
                       ? Container(
@@ -351,6 +451,7 @@ class InventarioPageState extends State<InventarioPage> {
     );
   }
 
+  // ... (el resto de tus métodos se mantienen iguales: _buildEmptyState, _buildTable, _buildTableHeader, etc.)
   Widget _buildEmptyState() {
     return SizedBox(
       height: 400,
@@ -396,34 +497,53 @@ class InventarioPageState extends State<InventarioPage> {
             final p = _productos[index];
             final esProducto = p['tipo']?.toString().toLowerCase() != 'servicio';
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    _cell(p['id']?.toString() ?? ''),
-                    _cell(p['nombre']?.toString() ?? ''),
-                    _cellTipo(p['tipo']?.toString() ?? ''),
-                    _cell(p['stock']?.toString() ?? '0'),
-                    _cell(_formatearPrecio(p['precio_compra'])),
-                    _cell(_formatearPrecio(p['precio_venta'])),
-                    _cell(_obtenerNombreProveedor(p['id_proveedor']?.toString())),
-                    _cell(p['descripcion']?.toString() ?? ''),
-                    _cell(p['clasificacion']?.toString() ?? ''),
-                    Expanded(
-                      child: Wrap(
-                        spacing: 6,
-                        children: [
-                          _accionBtn('Editar', Icons.edit, Colors.blue, () => esProducto
-                            ? mostrarModalEditarProducto(context, p, onSuccess: _cargarProductos)
-                            : mostrarModalEditarServicio(context, p, onSuccess: _cargarProductos)),
-                          if (esProducto) _accionBtn('Agregar Stock', Icons.add, Colors.green, () => mostrarModalEntradaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
-                          if (esProducto) _accionBtn('Salida Stock', Icons.remove, Colors.orange, () => mostrarModalSalidaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', int.tryParse(p['stock']?.toString() ?? '0') ?? 0, onSuccess: _cargarProductos)),
-                          _accionBtn('Eliminar', Icons.delete, Colors.red, () => mostrarModalEliminarProducto(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
+  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  child: Row(
+    children: [
+      Expanded(flex: 1, child: Text(
+        p['sku']?.toString().isNotEmpty == true ? p['sku'].toString() : '-',
+        style: const TextStyle(fontSize: 13),
+        overflow: TextOverflow.ellipsis,
+      )),
+      Expanded(flex: 2, child: Text(
+        p['nombre']?.toString() ?? '',
+        style: const TextStyle(fontSize: 13),
+        overflow: TextOverflow.ellipsis,
+      )),
+      Expanded(flex: 1, child: _cellTipo(p['tipo']?.toString() ?? '')),
+      Expanded(flex: 1, child: Text(p['stock']?.toString() ?? '0', style: const TextStyle(fontSize: 13))),
+      Expanded(flex: 1, child: Text(_formatearPrecio(p['precio_compra']), style: const TextStyle(fontSize: 13))),
+      Expanded(flex: 1, child: Text(_formatearPrecio(p['precio_venta']), style: const TextStyle(fontSize: 13))),
+      Expanded(flex: 2, child: Tooltip(
+        message: _obtenerNombreProveedor(p['id_proveedor']?.toString()),
+        child: Text(_obtenerNombreProveedor(p['id_proveedor']?.toString()),
+          style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis, maxLines: 1),
+      )),
+      Expanded(flex: 2, child: Tooltip(
+        message: p['descripcion']?.toString() ?? '',
+        child: Text(p['descripcion']?.toString() ?? '',
+          style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis, maxLines: 2),
+      )),
+      Expanded(flex: 2, child: Text(
+        p['clasificacion']?.toString() ?? '',
+        style: const TextStyle(fontSize: 13),
+        overflow: TextOverflow.ellipsis,
+      )),
+      Expanded(flex: 2, child: Wrap(
+        spacing: 4,
+        runSpacing: 2,
+        children: [
+          _accionBtn('Editar', Icons.edit, Colors.blue, () => esProducto
+            ? mostrarModalEditarProducto(context, p, onSuccess: _cargarProductos)
+            : mostrarModalEditarServicio(context, p, onSuccess: _cargarProductos)),
+          if (esProducto) _accionBtn('+ Stock', Icons.add, Colors.green, () => mostrarModalEntradaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
+          if (esProducto) _accionBtn('- Stock', Icons.remove, Colors.orange, () => mostrarModalSalidaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', int.tryParse(p['stock']?.toString() ?? '0') ?? 0, onSuccess: _cargarProductos)),
+          _accionBtn('Eliminar', Icons.delete, Colors.red, () => mostrarModalEliminarProducto(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
+        ],
+      )),
+    ],
+  ),
+);
           },
         ),
       ],
@@ -432,57 +552,48 @@ class InventarioPageState extends State<InventarioPage> {
 
 Widget _buildTableHeader() {
     const style = TextStyle(color: _headerColor, fontWeight: FontWeight.bold, fontSize: 13);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFF0F0),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
-      ),
-      child: Row(
+return Container(
+  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  decoration: const BoxDecoration(
+    color: Color(0xFFFFF0F0),
+    borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+  ),
+  child: Row(
+    children: [
+      Expanded(flex: 1, child: Text('SKU', style: style)),
+      Expanded(flex: 2, child: Text('Producto', style: style)),
+      Expanded(flex: 1, child: Text('Tipo', style: style)),
+      Expanded(flex: 1, child: Row(
         children: [
-          const Expanded(child: Text('Id', style: style)),
-          const Expanded(child: Text('Producto', style: style)),
-          const Expanded(child: Text('Tipo', style: style)),
-          Expanded(
-            child: Row(
-              children: [
-                const Text('Stock', style: style),
-                const SizedBox(width: 4),
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      if (_ordenStock == 'asc') {
-                        _ordenStock = 'desc';
-                      } else if (_ordenStock == 'desc') {
-                        _ordenStock = null;
-                      } else {
-                        _ordenStock = 'asc';
-                      }
-                    });
-                    _cargarProductos();
-                  },
-                  child: Icon(
-                    _ordenStock == 'asc'
-                        ? Icons.arrow_downward
-                        : _ordenStock == 'desc'
-                            ? Icons.arrow_upward
-                            : Icons.unfold_more,
-                    size: 16,
-                    color: _headerColor,
-                  ),
-                ),
-              ],
+          const Text('Stock', style: style),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                if (_ordenStock == 'asc') _ordenStock = 'desc';
+                else if (_ordenStock == 'desc') _ordenStock = null;
+                else _ordenStock = 'asc';
+              });
+              _cargarProductos();
+            },
+            child: Icon(
+              _ordenStock == 'asc' ? Icons.arrow_downward
+                : _ordenStock == 'desc' ? Icons.arrow_upward
+                : Icons.unfold_more,
+              size: 16, color: _headerColor,
             ),
           ),
-          const Expanded(child: Text('Compra', style: style)),
-          const Expanded(child: Text('Venta', style: style)),
-          const Expanded(child: Text('Proveedor', style: style)),
-          const Expanded(child: Text('Descripción', style: style)),
-          const Expanded(child: Text('Clasificación', style: style)),
-          const Expanded(child: Text('Acciones', style: style)),
         ],
-      ),
-    );
+      )),
+      Expanded(flex: 1, child: Text('Compra', style: style)),
+      Expanded(flex: 1, child: Text('Venta', style: style)),
+      Expanded(flex: 2, child: Text('Proveedor', style: style)),
+      Expanded(flex: 2, child: Text('Descripción', style: style)),
+      Expanded(flex: 2, child: Text('Clasificación', style: style)),
+      Expanded(flex: 2, child: Text('Acciones', style: style)),
+    ],
+  ),
+);
   }
 
   Widget _cell(String text) {

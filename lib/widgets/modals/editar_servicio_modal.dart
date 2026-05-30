@@ -4,11 +4,13 @@ import 'package:taller_rodriguez/services/inventario_api.dart';
 import 'package:taller_rodriguez/services/proveedor_api.dart';
 import 'package:taller_rodriguez/utils/validadores.dart';
 
+
 void mostrarModalEditarServicio(BuildContext context, Map<String, dynamic> producto, {VoidCallback? onSuccess}) {
   final nombreController = TextEditingController(text: producto['nombre']?.toString() ?? '');
   final precioCompraController = TextEditingController(text: producto['precio_compra']?.toString() ?? '');
   final precioVentaController = TextEditingController(text: producto['precio_venta']?.toString() ?? '');
   final descripcionController = TextEditingController(text: producto['descripcion']?.toString() ?? '');
+  final skuController = TextEditingController(text: producto['sku']?.toString() ?? '');
   String? clasificacion = producto['clasificacion']?.toString();
   bool cargando = false;
   List<Map<String, dynamic>> proveedores = [];
@@ -84,8 +86,10 @@ void mostrarModalEditarServicio(BuildContext context, Map<String, dynamic> produ
                         ),
                       ],
                     ),
+                   const SizedBox(height: 16),
+                   _modalTextField('SKU (código del servicio):', skuController),
                     const SizedBox(height: 16),
-                    Row(
+                       Row(
                       children: [
                         Expanded(child: _modalTextField('Precio de compra:', precioCompraController, prefix: '\$', keyboardType: TextInputType.number, formatters: [ValidadorPrecio()])),
                         const SizedBox(width: 16),
@@ -110,6 +114,7 @@ void mostrarModalEditarServicio(BuildContext context, Map<String, dynamic> produ
 
                         final resultado = await api.actualizarProducto(id, {
                           'nombre': nombreController.text,
+                          'sku': skuController.text.trim(),
                           'tipo': 'Servicio',
                           'clasificacion': clasificacion,
                           'descripcion': descripcionController.text,
