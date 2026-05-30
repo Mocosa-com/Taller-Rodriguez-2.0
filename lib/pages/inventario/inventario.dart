@@ -28,10 +28,8 @@ class InventarioPageState extends State<InventarioPage> {
   bool _cargando = false;
   bool _hayFiltrosActivos = false;
   List<Map<String, dynamic>> _proveedores = [];
+  List<Map<String, dynamic>> _productos = [];
 
-    List<Map<String, dynamic>> _productos = [];
-
-  // === Productos con stock bajo ===
   List<Map<String, dynamic>> get _productosStockBajo => _productos
       .where((p) =>
           p['tipo']?.toString().toLowerCase() != 'servicio' &&
@@ -39,20 +37,15 @@ class InventarioPageState extends State<InventarioPage> {
               (int.tryParse(p['stock_minimo']?.toString() ?? '0') ?? 0))
       .toList();
 
-  // === Clasificaciones dinámicas (versión corregida) ===
   List<String> get _clasificacionesOptions {
     final Set<String> clasificaciones = {'Todos'};
-    
     for (var p in _productos) {
       final clasif = p['clasificacion']?.toString();
       if (clasif != null && clasif.isNotEmpty) {
         clasificaciones.add(clasif);
       }
     }
-    
     final list = clasificaciones.toList()..sort();
-
-    // ✅ Seguridad: si el filtro actual no existe en las opciones, lo limpiamos
     if (_filtroProducto != null && !_filtroProducto!.isEmpty && !list.contains(_filtroProducto)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -62,18 +55,16 @@ class InventarioPageState extends State<InventarioPage> {
         }
       });
     }
-
     return list;
   }
 
   String? _idProveedorSeleccionado;
-   @override
+
+  @override
   void initState() {
     super.initState();
     _cargarProductos();
     _cargarProveedores();
-    
-    // Limpiar filtro si es inválido al inicio
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_filtroProducto != null) {
         setState(() {
@@ -99,7 +90,10 @@ class InventarioPageState extends State<InventarioPage> {
   Future<void> _cargarProductos({String? busqueda}) async {
     setState(() => _cargando = true);
     final textoBusqueda = busqueda ?? _searchController.text.trim();
-    _hayFiltrosActivos = textoBusqueda.isNotEmpty || _filtroProducto != null || _filtroProveedor != null || _ordenStock != null;
+    _hayFiltrosActivos = textoBusqueda.isNotEmpty ||
+        _filtroProducto != null ||
+        _filtroProveedor != null ||
+        _ordenStock != null;
 
     String? idProveedor;
     if (_filtroProveedor != null && _filtroProveedor!.isNotEmpty) {
@@ -127,50 +121,8 @@ class InventarioPageState extends State<InventarioPage> {
     _cargarProductos(busqueda: texto.isEmpty ? null : texto);
   }
 
-  void _onSearchSubmitted(String valor) {
-    _ejecutarBusqueda();
-  }
-
-  void _onSearchPressed() {
-    _ejecutarBusqueda();
-  }
-
-  Future<void> _confirmarEliminar(BuildContext context, String id, String nombre) async {
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: Text('¿Estás seguro de eliminar el producto "$nombre"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmado == true) {
-      final exito = await _api.eliminarProducto(id);
-      if (exito) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Producto eliminado exitosamente')),
-        );
-        _cargarProductos();
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error al eliminar el producto')),
-          );
-        }
-      }
-    }
-  }
+  void _onSearchSubmitted(String valor) => _ejecutarBusqueda();
+  void _onSearchPressed() => _ejecutarBusqueda();
 
   static const Color _headerColor = Color(0xFFA61B1B);
 
@@ -189,7 +141,6 @@ class InventarioPageState extends State<InventarioPage> {
     return proveedor['nombre']?.toString() ?? '-';
   }
 
-  // === Cambio 3: Widget del banner de stock bajo ===
   Widget _buildBannerStockBajo() {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -286,16 +237,16 @@ class InventarioPageState extends State<InventarioPage> {
                                 label: 'Filtrar productos:',
                                 value: _filtroProducto,
                                 options: ['Todos', 'Aceites y fluidos', 'Frenos', 'Motor', 'Eléctrico', 'Suspensión', 'Transmisión', 'Carrocería', 'Accesorios'],
-                               onChanged: (val) {
-  setState(() {
-    if (val == 'Todos' || val == null) {
-      _filtroProveedor = null;
-    } else {
-      _filtroProveedor = val;
-    }
-  });
-  _cargarProductos();
-},
+                                onChanged: (val) {
+                                  setState(() {
+                                    if (val == 'Todos' || val == null) {
+                                      _filtroProducto = null;
+                                    } else {
+                                      _filtroProducto = val;
+                                    }
+                                  });
+                                  _cargarProductos();
+                                },
                               ),
                               const SizedBox(width: 12),
                               FilterDropdown(
@@ -304,7 +255,7 @@ class InventarioPageState extends State<InventarioPage> {
                                 options: ['Todos', ..._proveedores.map((p) => p['nombre']?.toString() ?? '')],
                                 onChanged: (val) {
                                   setState(() {
-                                    if (val == 'Todos') {
+                                    if (val == 'Todos' || val == null) {
                                       _filtroProveedor = null;
                                     } else {
                                       _filtroProveedor = val;
@@ -331,7 +282,7 @@ class InventarioPageState extends State<InventarioPage> {
                                 options: ['Todos', 'Aceites y fluidos', 'Frenos', 'Motor', 'Eléctrico', 'Suspensión', 'Transmisión', 'Carrocería', 'Accesorios'],
                                 onChanged: (val) {
                                   setState(() {
-                                    if (val == 'Todos') {
+                                    if (val == 'Todos' || val == null) {
                                       _filtroProducto = null;
                                     } else {
                                       _filtroProducto = val;
@@ -340,57 +291,142 @@ class InventarioPageState extends State<InventarioPage> {
                                   _cargarProductos();
                                 },
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 15),
                               FilterDropdown(
                                 label: 'Filtrar por proveedor:',
                                 value: _filtroProveedor,
                                 options: ['Todos', ..._proveedores.map((p) => p['nombre']?.toString() ?? '')],
-                               onChanged: (val) {
-  setState(() {
-    if (val == 'Todos' || val == null) {
-      _filtroProveedor = null;
-    } else {
-      _filtroProveedor = val;
-    }
-  });
-  _cargarProductos();
-},
+                                onChanged: (val) {
+                                  setState(() {
+                                    if (val == 'Todos' || val == null) {
+                                      _filtroProveedor = null;
+                                    } else {
+                                      _filtroProveedor = val;
+                                    }
+                                  });
+                                  _cargarProductos();
+                                },
                               ),
                             ],
                           ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // === Cambio 2: Banner de stock bajo ===
-                  if (_productosStockBajo.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25),
-                      child: _buildBannerStockBajo(),
+                  const SizedBox(height: 10),
+                  // TABLA DESKTOP
+                  if (isWide)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 25),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          )
+                        ],
+                      ),
+                      child: _cargando
+                          ? const SizedBox(
+                              height: 200,
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          : _productos.isEmpty
+                              ? _buildEmptyState()
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(15),
+                                  child: Column(
+                                    children: [
+                                      // Header fijo
+                                      _buildTableHeader(),
+                                      // Filas con scroll interno
+                                      SizedBox(
+                                        height: 400,
+                                        child: SingleChildScrollView(
+                                          scrollDirection: Axis.vertical,
+                                          child: ListView.separated(
+                                            shrinkWrap: true,
+                                            physics: const NeverScrollableScrollPhysics(),
+                                            itemCount: _productos.length,
+                                            separatorBuilder: (_, __) => const Divider(height: 1),
+                                            itemBuilder: (context, index) {
+                                              final p = _productos[index];
+                                              final esProducto = p['tipo']?.toString().toLowerCase() != 'servicio';
+                                              return Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                                child: Row(
+                                                  children: [
+                                                    Expanded(flex: 1, child: Text(
+                                                      p['sku']?.toString().isNotEmpty == true ? p['sku'].toString() : '-',
+                                                      style: const TextStyle(fontSize: 13),
+                                                      overflow: TextOverflow.ellipsis,
+                                                    )),
+                                                    Expanded(flex: 2, child: Text(
+                                                      p['nombre']?.toString() ?? '',
+                                                      style: const TextStyle(fontSize: 13),
+                                                      overflow: TextOverflow.ellipsis,
+                                                    )),
+                                                    Expanded(flex: 1, child: _cellTipo(p['tipo']?.toString() ?? '')),
+                                                    Expanded(flex: 1, child: Text(p['stock']?.toString() ?? '0', style: const TextStyle(fontSize: 13))),
+                                                    Expanded(flex: 1, child: Text(_formatearPrecio(p['precio_compra']), style: const TextStyle(fontSize: 13))),
+                                                    Expanded(flex: 1, child: Text(_formatearPrecio(p['precio_venta']), style: const TextStyle(fontSize: 13))),
+                                                    Expanded(flex: 2, child: Tooltip(
+                                                      message: _obtenerNombreProveedor(p['id_proveedor']?.toString()),
+                                                      child: Text(
+                                                        _obtenerNombreProveedor(p['id_proveedor']?.toString()),
+                                                        style: const TextStyle(fontSize: 13),
+                                                        overflow: TextOverflow.ellipsis,
+                                                        maxLines: 1,
+                                                      ),
+                                                    )),
+                                                    Expanded(flex: 2, child: Tooltip(
+                                                      message: p['descripcion']?.toString() ?? '',
+                                                      child: Text(
+                                                        p['descripcion']?.toString() ?? '',
+                                                        style: const TextStyle(fontSize: 13),
+                                                        overflow: TextOverflow.ellipsis,
+                                                        maxLines: 2,
+                                                      ),
+                                                    )),
+                                                    Expanded(flex: 2, child: Text(
+                                                      p['clasificacion']?.toString() ?? '',
+                                                      style: const TextStyle(fontSize: 13),
+                                                      overflow: TextOverflow.ellipsis,
+                                                    )),
+                                                    Expanded(flex: 2, child: Wrap(
+                                                      spacing: 4,
+                                                      runSpacing: 2,
+                                                      children: [
+                                                        _accionBtn('Editar', Icons.edit, Colors.blue, () => esProducto
+                                                          ? mostrarModalEditarProducto(context, p, onSuccess: _cargarProductos)
+                                                          : mostrarModalEditarServicio(context, p, onSuccess: _cargarProductos)),
+                                                        if (esProducto) _accionBtn('+ Stock', Icons.add, Colors.green, () => mostrarModalEntradaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
+                                                        if (esProducto) _accionBtn('- Stock', Icons.remove, Colors.orange, () => mostrarModalSalidaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', int.tryParse(p['stock']?.toString() ?? '0') ?? 0, onSuccess: _cargarProductos)),
+                                                        _accionBtn('Eliminar', Icons.delete, Colors.red, () => mostrarModalEliminarProducto(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
+                                                      ],
+                                                    )),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                     ),
 
-                  isWide
-                      ? Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 25),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(15),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              )
-                            ],
-                          ),
-                          child: _cargando
-                              ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
-                              : _productos.isEmpty ? _buildEmptyState() : _buildTable(),
-                        )
-                      : _cargando
-                          ? const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
-                          : _productos.isEmpty
-                              ? _buildEmptyStateMobile()
-                              : _buildCardList(),
+                  // LISTA MÓVIL
+                  if (!isWide)
+                    _cargando
+                        ? const Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        : _productos.isEmpty
+                            ? _buildEmptyStateMobile()
+                            : _buildCardList(),
 
                   const SizedBox(height: 20),
 
@@ -442,6 +478,13 @@ class InventarioPageState extends State<InventarioPage> {
                             ],
                           ),
                   ),
+                  const SizedBox(height: 20),
+
+                  if (_productosStockBajo.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 25),
+                      child: _buildBannerStockBajo(),
+                    ),
                 ],
               ),
             ),
@@ -451,12 +494,10 @@ class InventarioPageState extends State<InventarioPage> {
     );
   }
 
-  // ... (el resto de tus métodos se mantienen iguales: _buildEmptyState, _buildTable, _buildTableHeader, etc.)
   Widget _buildEmptyState() {
     return SizedBox(
       height: 400,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _buildTableHeader(),
           Expanded(
@@ -474,7 +515,11 @@ class InventarioPageState extends State<InventarioPage> {
                       ? 'NO HAY RESULTADOS\nPARA LA BÚSQUEDA ACTUAL'
                       : 'NO SE HA AGREGADO NINGÚN PRODUCTO\nAL INVENTARIO',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 1),
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
                 ),
               ],
             ),
@@ -484,132 +529,66 @@ class InventarioPageState extends State<InventarioPage> {
     );
   }
 
-  Widget _buildTable() {
-    return Column(
-      children: [
-        _buildTableHeader(),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _productos.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final p = _productos[index];
-            final esProducto = p['tipo']?.toString().toLowerCase() != 'servicio';
-              return Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-  child: Row(
-    children: [
-      Expanded(flex: 1, child: Text(
-        p['sku']?.toString().isNotEmpty == true ? p['sku'].toString() : '-',
-        style: const TextStyle(fontSize: 13),
-        overflow: TextOverflow.ellipsis,
-      )),
-      Expanded(flex: 2, child: Text(
-        p['nombre']?.toString() ?? '',
-        style: const TextStyle(fontSize: 13),
-        overflow: TextOverflow.ellipsis,
-      )),
-      Expanded(flex: 1, child: _cellTipo(p['tipo']?.toString() ?? '')),
-      Expanded(flex: 1, child: Text(p['stock']?.toString() ?? '0', style: const TextStyle(fontSize: 13))),
-      Expanded(flex: 1, child: Text(_formatearPrecio(p['precio_compra']), style: const TextStyle(fontSize: 13))),
-      Expanded(flex: 1, child: Text(_formatearPrecio(p['precio_venta']), style: const TextStyle(fontSize: 13))),
-      Expanded(flex: 2, child: Tooltip(
-        message: _obtenerNombreProveedor(p['id_proveedor']?.toString()),
-        child: Text(_obtenerNombreProveedor(p['id_proveedor']?.toString()),
-          style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis, maxLines: 1),
-      )),
-      Expanded(flex: 2, child: Tooltip(
-        message: p['descripcion']?.toString() ?? '',
-        child: Text(p['descripcion']?.toString() ?? '',
-          style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis, maxLines: 2),
-      )),
-      Expanded(flex: 2, child: Text(
-        p['clasificacion']?.toString() ?? '',
-        style: const TextStyle(fontSize: 13),
-        overflow: TextOverflow.ellipsis,
-      )),
-      Expanded(flex: 2, child: Wrap(
-        spacing: 4,
-        runSpacing: 2,
-        children: [
-          _accionBtn('Editar', Icons.edit, Colors.blue, () => esProducto
-            ? mostrarModalEditarProducto(context, p, onSuccess: _cargarProductos)
-            : mostrarModalEditarServicio(context, p, onSuccess: _cargarProductos)),
-          if (esProducto) _accionBtn('+ Stock', Icons.add, Colors.green, () => mostrarModalEntradaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
-          if (esProducto) _accionBtn('- Stock', Icons.remove, Colors.orange, () => mostrarModalSalidaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', int.tryParse(p['stock']?.toString() ?? '0') ?? 0, onSuccess: _cargarProductos)),
-          _accionBtn('Eliminar', Icons.delete, Colors.red, () => mostrarModalEliminarProducto(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
-        ],
-      )),
-    ],
-  ),
-);
-          },
-        ),
-      ],
-    );
-  }
-
-Widget _buildTableHeader() {
+  Widget _buildTableHeader() {
     const style = TextStyle(color: _headerColor, fontWeight: FontWeight.bold, fontSize: 13);
-return Container(
-  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-  decoration: const BoxDecoration(
-    color: Color(0xFFFFF0F0),
-    borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
-  ),
-  child: Row(
-    children: [
-      Expanded(flex: 1, child: Text('SKU', style: style)),
-      Expanded(flex: 2, child: Text('Producto', style: style)),
-      Expanded(flex: 1, child: Text('Tipo', style: style)),
-      Expanded(flex: 1, child: Row(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF0F0),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+      ),
+      child: Row(
         children: [
-          const Text('Stock', style: style),
-          const SizedBox(width: 4),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                if (_ordenStock == 'asc') _ordenStock = 'desc';
-                else if (_ordenStock == 'desc') _ordenStock = null;
-                else _ordenStock = 'asc';
-              });
-              _cargarProductos();
-            },
-            child: Icon(
-              _ordenStock == 'asc' ? Icons.arrow_downward
-                : _ordenStock == 'desc' ? Icons.arrow_upward
-                : Icons.unfold_more,
-              size: 16, color: _headerColor,
+          Expanded(flex: 1, child: const Text('SKU', style: style)),
+          Expanded(flex: 2, child: const Text('Producto', style: style)),
+          Expanded(flex: 1, child: const Text('Tipo', style: style)),
+          Expanded(
+            flex: 1,
+            child: Row(
+              children: [
+                const Text('Stock', style: style),
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (_ordenStock == 'asc') _ordenStock = 'desc';
+                      else if (_ordenStock == 'desc') _ordenStock = null;
+                      else _ordenStock = 'asc';
+                    });
+                    _cargarProductos();
+                  },
+                  child: Icon(
+                    _ordenStock == 'asc'
+                        ? Icons.arrow_downward
+                        : _ordenStock == 'desc'
+                            ? Icons.arrow_upward
+                            : Icons.unfold_more,
+                    size: 16,
+                    color: _headerColor,
+                  ),
+                ),
+              ],
             ),
           ),
+          Expanded(flex: 1, child: const Text('Compra', style: style)),
+          Expanded(flex: 1, child: const Text('Venta', style: style)),
+          Expanded(flex: 2, child: const Text('Proveedor', style: style)),
+          Expanded(flex: 2, child: const Text('Descripción', style: style)),
+          Expanded(flex: 2, child: const Text('Clasificación', style: style)),
+          Expanded(flex: 2, child: const Text('Acciones', style: style)),
         ],
-      )),
-      Expanded(flex: 1, child: Text('Compra', style: style)),
-      Expanded(flex: 1, child: Text('Venta', style: style)),
-      Expanded(flex: 2, child: Text('Proveedor', style: style)),
-      Expanded(flex: 2, child: Text('Descripción', style: style)),
-      Expanded(flex: 2, child: Text('Clasificación', style: style)),
-      Expanded(flex: 2, child: Text('Acciones', style: style)),
-    ],
-  ),
-);
-  }
-
-  Widget _cell(String text) {
-    return Expanded(child: Text(text, style: const TextStyle(fontSize: 13)));
+      ),
+    );
   }
 
   Widget _cellTipo(String tipo) {
     final esProducto = tipo.toLowerCase() == 'producto';
-    return Expanded(
-      child: Text(
-        tipo.isEmpty ? '-' : tipo,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: esProducto ? Colors.blue : const Color(0xFFFF8C00),
-        ),
+    return Text(
+      tipo.isEmpty ? '-' : tipo,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        color: esProducto ? Colors.blue : const Color(0xFFFF8C00),
       ),
     );
   }
@@ -631,7 +610,11 @@ return Container(
                 ? 'NO HAY RESULTADOS\nPARA LA BÚSQUEDA ACTUAL'
                 : 'NO SE HA AGREGADO NINGÚN PRODUCTO\nAL INVENTARIO',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 1),
+            style: const TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
           ),
         ],
       ),
@@ -670,15 +653,18 @@ return Container(
                 ),
                 child: Row(
                   children: [
-                    Text('#${p['id'] ?? ''}', style: const TextStyle(color: _headerColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text('#${p['id'] ?? ''}',
+                        style: const TextStyle(color: _headerColor, fontWeight: FontWeight.bold, fontSize: 13)),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(p['nombre']?.toString() ?? '', style: const TextStyle(color: _headerColor, fontWeight: FontWeight.bold, fontSize: 15)),
+                      child: Text(p['nombre']?.toString() ?? '',
+                          style: const TextStyle(color: _headerColor, fontWeight: FontWeight.bold, fontSize: 15)),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(color: _headerColor, borderRadius: BorderRadius.circular(6)),
-                      child: Text(p['clasificacion']?.toString() ?? '', style: const TextStyle(color: Colors.white, fontSize: 11)),
+                      child: Text(p['clasificacion']?.toString() ?? '',
+                          style: const TextStyle(color: Colors.white, fontSize: 11)),
                     ),
                   ],
                 ),
@@ -702,7 +688,7 @@ return Container(
                   children: [
                     const Divider(height: 1),
                     const SizedBox(height: 10),
-                     Wrap(
+                    Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
@@ -715,10 +701,13 @@ return Container(
                           }
                         }),
                         if (p['tipo']?.toString().toLowerCase() != 'servicio') ...[
-                          _accionBtnMobile('Agregar Stock', Icons.add, Colors.green, () => mostrarModalEntradaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
-                          _accionBtnMobile('Salida Stock', Icons.remove, Colors.orange, () => mostrarModalSalidaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', int.tryParse(p['stock']?.toString() ?? '0') ?? 0, onSuccess: _cargarProductos)),
+                          _accionBtnMobile('Agregar Stock', Icons.add, Colors.green,
+                              () => mostrarModalEntradaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
+                          _accionBtnMobile('Salida Stock', Icons.remove, Colors.orange,
+                              () => mostrarModalSalidaStock(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', int.tryParse(p['stock']?.toString() ?? '0') ?? 0, onSuccess: _cargarProductos)),
                         ],
-                        _accionBtnMobile('Eliminar', Icons.delete, Colors.red, () => mostrarModalEliminarProducto(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
+                        _accionBtnMobile('Eliminar', Icons.delete, Colors.red,
+                            () => mostrarModalEliminarProducto(context, p['id']?.toString() ?? '', p['nombre']?.toString() ?? '', onSuccess: _cargarProductos)),
                       ],
                     ),
                   ],
@@ -738,7 +727,8 @@ return Container(
         children: [
           SizedBox(
             width: 120,
-            child: Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500)),
+            child: Text(label,
+                style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500)),
           ),
           Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
         ],
@@ -777,7 +767,6 @@ return Container(
 
 class _LimpiarFiltrosButton extends StatefulWidget {
   final VoidCallback onTap;
-
   const _LimpiarFiltrosButton({required this.onTap});
 
   @override
@@ -799,9 +788,7 @@ class _LimpiarFiltrosButtonState extends State<_LimpiarFiltrosButton> {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            color: _hovered
-                ? const Color(0xFF7B2FF7)
-                : const Color(0xFF6A1B9A),
+            color: _hovered ? const Color(0xFF7B2FF7) : const Color(0xFF6A1B9A),
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
@@ -816,10 +803,8 @@ class _LimpiarFiltrosButtonState extends State<_LimpiarFiltrosButton> {
             children: [
               Icon(Icons.filter_alt_off, color: Colors.white, size: 18),
               SizedBox(width: 8),
-              Text(
-                'Limpiar filtros',
-                style: TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Itim'),
-              ),
+              Text('Limpiar filtros',
+                  style: TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Itim')),
             ],
           ),
         ),
@@ -868,37 +853,6 @@ class _AgregarButtonState extends State<_AgregarButton> {
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white, fontSize: 16, fontFamily: 'Itim'),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HoverButton extends StatefulWidget {
-  final VoidCallback onTap;
-  final Color color;
-  final Widget Function(bool isHovered) child;
-
-  const _HoverButton({required this.onTap, required this.color, required this.child});
-
-  @override
-  State<_HoverButton> createState() => _HoverButtonState();
-}
-
-class _HoverButtonState extends State<_HoverButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 150),
-          child: widget.child(_hovered),
         ),
       ),
     );

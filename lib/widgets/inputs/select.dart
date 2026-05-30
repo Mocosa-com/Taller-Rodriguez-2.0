@@ -28,6 +28,7 @@ class FilterDropdown extends StatelessWidget {
           hint: Text(label, style: const TextStyle(color: Colors.white)),
           dropdownColor: const Color(0xFFC0392B),
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+          menuMaxHeight: 300, // 👈 único cambio
           items: options.map((opt) => DropdownMenuItem(
             value: opt,
             child: Text(opt, style: const TextStyle(color: Colors.white)),
