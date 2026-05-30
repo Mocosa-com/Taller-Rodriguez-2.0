@@ -34,16 +34,18 @@ class _ClientesPageState extends State<ClientesPage> {
   }
 
   Future<void> _cargarClientes() async {
-    try {
-      final data = await ClienteService.getAll();
-      setState(() {
-        _clientes = data;
-        _cargando = false;
-      });
-    } catch (e) {
-      setState(() => _cargando = false);
-    }
+  try {
+    final data = await ClienteService.getAll();
+    setState(() {
+      _clientes = data;
+      _cargando = false;
+    });
+  } catch (e, stack) {
+    print('ERROR CLIENTES: $e');
+    print(stack);
+    setState(() => _cargando = false);
   }
+}
 
   List<Cliente> get _clientesFiltrados {
     return _clientes.where((c) {

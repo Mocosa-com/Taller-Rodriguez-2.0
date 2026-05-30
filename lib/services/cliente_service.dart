@@ -4,13 +4,19 @@ import 'package:taller_rodriguez/models/cliente.dart';
 class ClienteService {
   static final _db = Supabase.instance.client.from('clientes');
 
-  static Future<List<Cliente>> getAll() async {
-    final data = await _db.select().order('nombre', ascending: true);
-    return (data as List).map((e) => Cliente.fromJson(e)).toList();
-  }
+static Future<List<Cliente>> getAll() async {
+  final data = await _db
+      .select()
+      .or('activo.eq.true,activo.is.null')
+      .order('nombre', ascending: true);
+  print('CLIENTES RAW: $data');
+  return (data as List).map((e) => Cliente.fromJson(e)).toList();
+}
 
   static Future<void> create(Cliente cliente) async {
-    await _db.insert(cliente.toJson());
+    final json = cliente.toJson()..remove('id');
+    json['activo'] = true;
+    await _db.insert(json);
   }
 
   static Future<void> update(Cliente cliente) async {
@@ -18,6 +24,7 @@ class ClienteService {
   }
 
   static Future<void> delete(int id) async {
-    await _db.delete().eq('id', id);
+    // No se borra — se desactiva
+    await _db.update({'activo': false}).eq('id', id);
   }
 }

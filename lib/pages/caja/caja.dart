@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:taller_rodriguez/widgets/navigation/sidebar.dart';
+import 'package:taller_rodriguez/services/caja_service.dart';
+import 'package:taller_rodriguez/services/session_service.dart';
 
 class CajaPage extends StatefulWidget {
   const CajaPage({super.key});
@@ -9,21 +12,116 @@ class CajaPage extends StatefulWidget {
 }
 
 class _CajaPageState extends State<CajaPage> {
-  // ── Estado principal de la caja ──────────────────────────────────────────
-  // Cambia este valor a `true` para simular caja abierta, `false` para cerrada.
-  bool _cajaAbierta = false;
+  bool _cargando = true;
+  Map<String, dynamic>? _cajaAbierta;
+  final TextEditingController _baseController = TextEditingController();
+  final TextEditingController _efectivoController = TextEditingController();
 
-  // TODO (backend): traer estos valores desde la API
-  final String _responsable = 'Nombre del empleado'; // reemplazar con dato real
-  final String _efectivoActual = '\$100';             // reemplazar con dato real
-  final String _fecha = '20/10/2025';                 // reemplazar con DateTime.now()
+  @override
+  void initState() {
+    super.initState();
+    _cargarEstadoCaja();
+  }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // BUILD
-  // ─────────────────────────────────────────────────────────────────────────
+  @override
+  void dispose() {
+    _baseController.dispose();
+    _efectivoController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cargarEstadoCaja() async {
+    setState(() => _cargando = true);
+    final caja = await CajaService.getCajaAbierta();
+    setState(() {
+      _cajaAbierta = caja;
+      _cargando = false;
+      if (caja != null) {
+        _efectivoController.text = caja['efectivo_actual']?.toString() ?? '';
+      }
+    });
+  }
+
+  Future<void> _abrirCaja() async {
+    final base = double.tryParse(_baseController.text);
+    if (base == null || base <= 0) {
+      _mostrarMensaje('Ingresa un monto base válido', isError: true);
+      return;
+    }
+
+    setState(() => _cargando = true);
+    final resultado = await CajaService.abrirCaja(base);
+    if (resultado['success'] == true) {
+      _mostrarMensaje('Caja abierta exitosamente');
+      _baseController.clear();
+      await _cargarEstadoCaja();
+    } else {
+      setState(() => _cargando = false);
+      _mostrarMensaje(resultado['message'] ?? 'Error al abrir caja', isError: true);
+    }
+  }
+
+  Future<void> _cerrarCaja() async {
+    if (_cajaAbierta == null) return;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cerrar caja'),
+        content: const Text('¿Estás segura de cerrar la caja?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Cerrar caja', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    setState(() => _cargando = true);
+    final resultado = await CajaService.cerrarCaja(_cajaAbierta!['id']);
+    if (resultado['success'] == true) {
+      _mostrarMensaje('Caja cerrada exitosamente');
+      await _cargarEstadoCaja();
+    } else {
+      setState(() => _cargando = false);
+      _mostrarMensaje(resultado['message'] ?? 'Error al cerrar caja', isError: true);
+    }
+  }
+
+  Future<void> _actualizarEfectivo() async {
+    if (_cajaAbierta == null) return;
+    final efectivo = double.tryParse(_efectivoController.text);
+    if (efectivo == null) {
+      _mostrarMensaje('Ingresa un monto válido', isError: true);
+      return;
+    }
+    final resultado = await CajaService.actualizarEfectivo(_cajaAbierta!['id'], efectivo);
+    if (resultado['success'] == true) {
+      _mostrarMensaje('Efectivo actualizado');
+      await _cargarEstadoCaja();
+    } else {
+      _mostrarMensaje('Error al actualizar', isError: true);
+    }
+  }
+
+  void _mostrarMensaje(String msg, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? Colors.red : Colors.green,
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isWide = MediaQuery.of(context).size.width > 1000;
+    final empleado = SessionService.currentUser;
+    final nombreEmpleado = empleado?['nombre']?.toString() ?? 'Sin sesión';
 
     return Scaffold(
       appBar: isWide ? null : AppBar(title: const Text('Caja')),
@@ -32,225 +130,200 @@ class _CajaPageState extends State<CajaPage> {
         children: [
           const Sidebar(),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 25),
-              child: Center(
-                child: _buildCajaCard(isWide),
-              ),
-            ),
+            child: _cargando
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 25),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 700),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Header
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFFF0F0),
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+                                ),
+                                child: const Text('Caja del taller',
+                                  style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, fontFamily: 'Itim')),
+                              ),
+
+                              Padding(
+                                padding: const EdgeInsets.all(28),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Estado
+                                    _infoRow('Estado:', Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 12, height: 12,
+                                          decoration: BoxDecoration(
+                                            color: _cajaAbierta != null ? Colors.green : Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          _cajaAbierta != null ? 'ABIERTA' : 'CERRADA',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: _cajaAbierta != null ? Colors.green : Colors.red,
+                                          ),
+                                        ),
+                                      ],
+                                    )),
+                                    const SizedBox(height: 16),
+
+                                    // Responsable (quien está logueado)
+                                    _infoRow('Responsable:', Text(nombreEmpleado,
+                                      style: const TextStyle(fontSize: 16, color: Color(0xFF444444)))),
+                                    const SizedBox(height: 16),
+
+                                    if (_cajaAbierta != null) ...[
+                                      // Fecha apertura
+                                      _infoRow('Fecha apertura:', Text(
+                                        _cajaAbierta!['fecha']?.toString() ?? '-',
+                                        style: const TextStyle(fontSize: 16, color: Color(0xFF444444)),
+                                      )),
+                                      const SizedBox(height: 16),
+
+                                      // Hora apertura
+                                      _infoRow('Hora apertura:', Text(
+                                        _cajaAbierta!['hora_apertura']?.toString() ?? '-',
+                                        style: const TextStyle(fontSize: 16, color: Color(0xFF444444)),
+                                      )),
+                                      const SizedBox(height: 16),
+
+                                      // Base inicial
+                                      _infoRow('Base inicial:', Text(
+                                        '\$${_cajaAbierta!['base_inicial']?.toString() ?? '0'}',
+                                        style: const TextStyle(fontSize: 16, color: Color(0xFF444444)),
+                                      )),
+                                      const SizedBox(height: 16),
+
+                                      // Efectivo actual editable
+                                      _infoRow('Efectivo actual:', Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 120,
+                                            child: TextField(
+                                              controller: _efectivoController,
+                                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+                                              decoration: InputDecoration(
+                                                prefixText: '\$',
+                                                isDense: true,
+                                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          TextButton(
+                                            onPressed: _actualizarEfectivo,
+                                            child: const Text('Actualizar'),
+                                          ),
+                                        ],
+                                      )),
+                                      const SizedBox(height: 32),
+
+                                      // Botón cerrar
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: _CajaButton(label: 'Cerrar caja', onTap: _cerrarCaja),
+                                      ),
+                                    ] else ...[
+                                      // Campo base inicial para abrir
+                                      const Text('Monto base inicial:',
+                                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                                      const SizedBox(height: 8),
+                                      TextField(
+                                        controller: _baseController,
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+                                        decoration: InputDecoration(
+                                          prefixText: '\$',
+                                          hintText: '0.00',
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 20),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: _CajaButton(label: 'Abrir caja', onTap: _abrirCaja),
+                                      ),
+                                    ],
+
+                                    const SizedBox(height: 16),
+
+                                    // Botones historial siempre visibles
+                                    isWide
+                                        ? Row(
+                                            children: [
+                                              Expanded(child: _CajaButton(label: 'Historial de turnos', onTap: () => Navigator.pushNamed(context, '/historialTurnos'))),
+                                              const SizedBox(width: 12),
+                                              Expanded(child: _CajaButton(label: 'Historial de facturas', onTap: () => Navigator.pushNamed(context, '/historialFacturas'))),
+                                            ],
+                                          )
+                                        : Column(
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            children: [
+                                              _CajaButton(label: 'Historial de turnos', onTap: () => Navigator.pushNamed(context, '/historialTurnos')),
+                                              const SizedBox(height: 12),
+                                              _CajaButton(label: 'Historial de facturas', onTap: () => Navigator.pushNamed(context, '/historialFacturas')),
+                                            ],
+                                          ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // TARJETA PRINCIPAL
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildCajaCard(bool isWide) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 1000),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCardHeader(),
-            // Cuerpo con la información
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoRow('Estado de la caja:', _estadoWidget()),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('Fecha:', Text(_fecha, style: _bodyStyle)),
-                  const SizedBox(height: 16),
-                  _buildInfoRow(
-                    'Responsable:',
-                    Text(
-                      '($_responsable)', // TODO: quitar paréntesis cuando venga del backend
-                      style: _bodyStyle,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow(
-                    'Efectivo actual:',
-                    Text(
-                      _efectivoActual, // TODO: formatear con intl cuando venga del backend
-                      style: _bodyStyle,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Botones — centrados con espacio uniforme en escritorio,
-                  // columna estirada en móvil
-                  isWide
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _CajaButton(
-                              label: 'Abrir caja',
-                              onTap: _abrirCaja,
-                              width: 160,
-                            ),
-                            const SizedBox(width: 20),
-                            _CajaButton(
-                              label: 'Cerrar caja',
-                              onTap: _cerrarCaja,
-                              width: 160,
-                            ),
-                            const SizedBox(width: 20),
-                            _CajaButton(
-                              label: 'Historial de turnos',
-                              onTap: _verHistorial,
-                              width: 200,
-                            ),
-                            const SizedBox(width: 20),
-                            _CajaButton(
-                              label: 'Historial de facturas',
-                              onTap: _verHistorialFacturas,
-                              width: 200,
-                            ),
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _CajaButton(label: 'Abrir caja', onTap: _abrirCaja),
-                            const SizedBox(height: 12),
-                            _CajaButton(label: 'Cerrar caja', onTap: _cerrarCaja),
-                            const SizedBox(height: 12),
-                            _CajaButton(
-                                label: 'Historial de turnos',
-                                onTap: _verHistorial),
-                            const SizedBox(height: 12),
-                                  _CajaButton(
-                                      label: 'Historial de facturas',
-                                      onTap: _verHistorial),
-                          ],
-                        ),
-                  const SizedBox(height: 10),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-      decoration: const BoxDecoration(
-        color: Color.fromARGB(255, 255, 255, 255),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
-      ),
-      child: const Text(
-        'Caja del taller',
-        style: TextStyle(
-          fontSize: 36,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'Itim',
-          color: Color.fromARGB(255, 0, 0, 0),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, Widget value) {
+  Widget _infoRow(String label, Widget value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF333333),
-          ),
-        ),
-        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+        const SizedBox(width: 10),
         value,
       ],
     );
   }
-
-  /// Indicador de estado: punto de color + texto ABIERTA / CERRADA
-  Widget _estadoWidget() {
-    final color = _cajaAbierta ? Colors.green : Colors.red;
-    final texto = _cajaAbierta ? 'ABIERTA' : 'CERRADA';
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          texto,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
-  static const TextStyle _bodyStyle = TextStyle(
-    fontSize: 16,
-    color: Color(0xFF444444),
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // ACCIONES
-  // ─────────────────────────────────────────────────────────────────────────
-  void _abrirCaja() {
-    // TODO (backend): llamar al endpoint de apertura de caja
-    setState(() => _cajaAbierta = true);
-  }
-
-  void _cerrarCaja() {
-    // TODO (backend): llamar al endpoint de cierre de caja
-    setState(() => _cajaAbierta = false);
-  }
-
-  void _verHistorial() {
-    Navigator.pushNamed(context, '/historialTurnos');
-  }
-  void _verHistorialFacturas() {
-    Navigator.pushNamed(context, '/historialFacturas');
-  }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BOTÓN ROJO CON HOVER — idéntico al patrón _AgregarButton de inventario
-// ─────────────────────────────────────────────────────────────────────────────
 class _CajaButton extends StatefulWidget {
   final String label;
   final VoidCallback onTap;
-  // width opcional: en escritorio se pasa un valor fijo para igualar tamaños;
-  // en móvil se omite y el botón se estira al ancho del Column.
   final double? width;
-
   const _CajaButton({required this.label, required this.onTap, this.width});
 
   @override
@@ -259,7 +332,6 @@ class _CajaButton extends StatefulWidget {
 
 class _CajaButtonState extends State<_CajaButton> {
   bool _hovered = false;
-
   static const _base = Color(0xFFC0392B);
   static const _hover = Color(0xFF96211F);
 
@@ -279,25 +351,12 @@ class _CajaButtonState extends State<_CajaButton> {
             color: _hovered ? _hover : _base,
             borderRadius: BorderRadius.circular(8),
             boxShadow: _hovered
-                ? [
-                    BoxShadow(
-                      color: _base.withValues(alpha: 0.4),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    )
-                  ]
+                ? [BoxShadow(color: _base.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))]
                 : [],
           ),
-          child: Text(
-            widget.label,
+          child: Text(widget.label,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Itim',
-            ),
-          ),
+            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Itim')),
         ),
       ),
     );
