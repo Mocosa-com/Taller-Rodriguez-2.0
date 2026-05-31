@@ -27,16 +27,16 @@ class Cliente {
 
   factory Cliente.fromJson(Map<String, dynamic> json) => Cliente(
     id: json['id'] as int?,
-    nombre: json['nombre'] as String? ?? '',
-    telefono: json['telefono'] as String? ?? '',
-    dui: json['dui'] as String? ?? '',
-    correo: json['correo'] as String?,
-    direccion: json['direccion'] as String?,
+    nombre: json['nombre']?.toString() ?? '',
+    telefono: json['telefono']?.toString() ?? '',
+    dui: json['dui']?.toString() ?? '',
+    correo: json['correo']?.toString(),
+    direccion: json['direccion']?.toString(),
     frecuenciaVisita: json['frecuencia_visita']?.toString() ?? 'Regular',
-    estado: json['activo'] as bool? ?? true,
-    fechaRegistro: json['fecha_registro'] as String?,
-    nit: json['nit'] as String?,
-    nrc: json['nrc'] as String?,
+    estado: json['activo'] == true || json['activo'].toString() == 'true',
+    fechaRegistro: json['fecha_registro']?.toString(),
+    nit: json['nit']?.toString(),
+    nrc: json['nrc']?.toString(),
   );
 
   Map<String, dynamic> toJson() => {

@@ -257,7 +257,7 @@ class _VehiculosPageState extends State<VehiculosPage> {
               child: Row(
                 children: [
                   SizedBox(width: 48, child: Text('#${v['id']}', style: const TextStyle(fontSize: 13))),
-                  SizedBox(width: 72, child: Text(v['placa'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                  SizedBox(width: 120, child: Text(v['placa'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
                   Expanded(
                     flex: 3,
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -298,7 +298,7 @@ class _VehiculosPageState extends State<VehiculosPage> {
       decoration: const BoxDecoration(color: _headerBg, borderRadius: BorderRadius.vertical(top: Radius.circular(15))),
       child: const Row(children: [
         SizedBox(width: 48, child: Text('ID', style: style)),
-        SizedBox(width: 72, child: Text('PLACA', style: style)),
+        SizedBox(width: 120, child: Text('PLACA', style: style)),
         Expanded(flex: 3, child: Text('MARCA / MODELO', style: style)),
         Expanded(flex: 2, child: Text('ESTADO', style: style)),
         Expanded(flex: 2, child: Text('INGRESO', style: style)),

@@ -5,18 +5,20 @@ class VehiculoService {
 
   static Future<Map<String, dynamic>> obtenerVehiculos({bool entregados = false}) async {
     try {
-      // Los filtros .eq/.neq DEBEN ir antes de .order()
-      final data = entregados
-          ? await _client
-              .from('vehiculos')
-              .select('*, clientes(nombre, dui), empleados(nombre)')
-              .eq('estado', 'Entregado')
-              .order('fecha_ingreso', ascending: false)
-          : await _client
-              .from('vehiculos')
-              .select('*, clientes(nombre, dui), empleados(nombre)')
-              .neq('estado', 'Entregado')
-              .order('fecha_ingreso', ascending: false);
+      
+     final data = entregados
+    ? await _client
+        .from('vehiculos')
+        .select('*, clientes(nombre, dui), empleados(nombre)')
+        .eq('estado', 'Entregado')
+        .eq('activo', true)
+        .order('fecha_ingreso', ascending: false)
+    : await _client
+        .from('vehiculos')
+        .select('*, clientes(nombre, dui), empleados(nombre)')
+        .neq('estado', 'Entregado')
+        .eq('activo', true)
+        .order('fecha_ingreso', ascending: false);
 
       final lista = (data as List).map((v) {
         final Map<String, dynamic> item = Map<String, dynamic>.from(v);
@@ -57,13 +59,13 @@ class VehiculoService {
   }
 
   static Future<Map<String, dynamic>> eliminarVehiculo(int id) async {
-    try {
-      await _client.from('vehiculos').delete().eq('id', id);
-      return {'success': true};
-    } catch (e) {
-      return {'success': false, 'message': 'Error al eliminar vehículo: $e'};
-    }
+  try {
+    await _client.from('vehiculos').update({'activo': false}).eq('id', id);
+    return {'success': true};
+  } catch (e) {
+    return {'success': false, 'message': 'Error al eliminar vehículo: $e'};
   }
+}
 
   static Future<List<Map<String, dynamic>>> obtenerVehiculosPorCliente(int clienteId) async {
     try {
