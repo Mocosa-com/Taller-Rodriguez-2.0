@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show FilteringTextInputFormatter;
+import 'package:flutter/services.dart';
 import 'package:taller_rodriguez/widgets/navigation/sidebar.dart';
 import 'package:taller_rodriguez/services/oferta_api.dart';
 
@@ -16,12 +16,12 @@ class _OfertasScreenState extends State<OfertasScreen> {
   bool _cargando = false;
 
   List<Map<String, dynamic>> _ofertas = [];
-  List<Map<String, dynamic>> _productos = [];
 
   final _nombreController = TextEditingController();
   final _descripcionController = TextEditingController();
   final _descuentoController = TextEditingController();
   final _productoController = TextEditingController();
+
   DateTime _fechaInicio = DateTime.now();
   DateTime _fechaFin = DateTime.now().add(const Duration(days: 30));
 
@@ -44,13 +44,15 @@ class _OfertasScreenState extends State<OfertasScreen> {
 
   Future<void> _cargarOfertas() async {
     setState(() => _cargando = true);
-    final ofertas = await _api.obtenerOfertas();
-    setState(() {
-      _ofertas = ofertas;
-      _cargando = false;
-    });
+    try {
+      final ofertas = await _api.obtenerOfertas();
+      setState(() => _ofertas = ofertas);
+    } catch (e) {
+      _mostrarMensaje('Error al cargar ofertas', isError: true);
+    } finally {
+      setState(() => _cargando = false);
+    }
   }
-
   Future<void> _crearOActualizarOferta() async {
     final nombre = _nombreController.text.trim();
     final descripcion = _descripcionController.text.trim();
@@ -164,11 +166,13 @@ class _OfertasScreenState extends State<OfertasScreen> {
     });
   }
 
-  void _mostrarMensaje(String mensaje, {bool isError = false}) {
+ void _mostrarMensaje(String mensaje, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(mensaje),
         backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
