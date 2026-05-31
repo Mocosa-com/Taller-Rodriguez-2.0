@@ -41,43 +41,34 @@ class InventarioPageState extends State<InventarioPage> {
     final Set<String> clasificaciones = {'Todos'};
     for (var p in _productos) {
       final clasif = p['clasificacion']?.toString();
-      if (clasif != null && clasif.isNotEmpty) {
-        clasificaciones.add(clasif);
-      }
+      if (clasif != null && clasif.isNotEmpty) clasificaciones.add(clasif);
     }
     final list = clasificaciones.toList()..sort();
-    if (_filtroProducto != null && !_filtroProducto!.isEmpty && !list.contains(_filtroProducto)) {
+    if (_filtroProducto != null && _filtroProducto!.isNotEmpty && !list.contains(_filtroProducto)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _filtroProducto = null;
-          });
-        }
+        if (mounted) setState(() => _filtroProducto = null);
       });
     }
     return list;
   }
 
-  String? _idProveedorSeleccionado;
-
   @override
   void initState() {
     super.initState();
-    _cargarProductos();
-    _cargarProveedores();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_filtroProducto != null) {
-        setState(() {
-          _filtroProducto = null;
-        });
-      }
-    });
+    _cargarDatosIniciales();
   }
 
-  Future<void> _cargarProveedores() async {
-    final proveedores = await _proveedorApi.obtenerProveedores();
+  Future<void> _cargarDatosIniciales() async {
+    setState(() => _cargando = true);
+    final resultados = await Future.wait([
+      _proveedorApi.obtenerProveedores(),
+      _api.obtenerInventario(),
+    ]);
+    if (!mounted) return;
     setState(() {
-      _proveedores = proveedores;
+      _proveedores = resultados[0];
+      _productos = resultados[1];
+      _cargando = false;
     });
   }
 
@@ -110,6 +101,8 @@ class InventarioPageState extends State<InventarioPage> {
       clasificacion: _filtroProducto,
       ordenStock: _ordenStock,
     );
+
+    if (!mounted) return;
     setState(() {
       _productos = productos;
       _cargando = false;
@@ -196,6 +189,15 @@ class InventarioPageState extends State<InventarioPage> {
     return Scaffold(
       drawer: isWide ? null : const SidebarDrawerContent(),
       appBar: isWide ? null : AppBar(title: const Text('Inventario')),
+
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => mostrarModalAgregarProducto(context, onSuccess: _cargarProductos),
+        backgroundColor: const Color(0xFFC0392B),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Agregar producto',
+            style: TextStyle(color: Colors.white, fontFamily: 'Itim')),
+      ),
+
       body: Row(
         children: [
           const Sidebar(),
@@ -219,6 +221,7 @@ class InventarioPageState extends State<InventarioPage> {
                     ),
                   if (isWide) const SizedBox(height: 20),
 
+                  // Filtros
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25),
                     child: isWide
@@ -239,11 +242,7 @@ class InventarioPageState extends State<InventarioPage> {
                                 options: ['Todos', 'Aceites y fluidos', 'Frenos', 'Motor', 'Eléctrico', 'Suspensión', 'Transmisión', 'Carrocería', 'Accesorios'],
                                 onChanged: (val) {
                                   setState(() {
-                                    if (val == 'Todos' || val == null) {
-                                      _filtroProducto = null;
-                                    } else {
-                                      _filtroProducto = val;
-                                    }
+                                    _filtroProducto = (val == 'Todos' || val == null) ? null : val;
                                   });
                                   _cargarProductos();
                                 },
@@ -255,15 +254,26 @@ class InventarioPageState extends State<InventarioPage> {
                                 options: ['Todos', ..._proveedores.map((p) => p['nombre']?.toString() ?? '')],
                                 onChanged: (val) {
                                   setState(() {
-                                    if (val == 'Todos' || val == null) {
-                                      _filtroProveedor = null;
-                                    } else {
-                                      _filtroProveedor = val;
-                                    }
+                                    _filtroProveedor = (val == 'Todos' || val == null) ? null : val;
                                   });
                                   _cargarProductos();
                                 },
                               ),
+                              if (_hayFiltrosActivos) ...[
+                                const SizedBox(width: 12),
+                                _LimpiarFiltrosButton(
+                                  onTap: () {
+                                    setState(() {
+                                      _searchController.clear();
+                                      _filtroProducto = null;
+                                      _filtroProveedor = null;
+                                      _ordenStock = null;
+                                      _hayFiltrosActivos = false;
+                                    });
+                                    _cargarProductos();
+                                  },
+                                ),
+                              ],
                             ],
                           )
                         : Column(
@@ -282,35 +292,44 @@ class InventarioPageState extends State<InventarioPage> {
                                 options: ['Todos', 'Aceites y fluidos', 'Frenos', 'Motor', 'Eléctrico', 'Suspensión', 'Transmisión', 'Carrocería', 'Accesorios'],
                                 onChanged: (val) {
                                   setState(() {
-                                    if (val == 'Todos' || val == null) {
-                                      _filtroProducto = null;
-                                    } else {
-                                      _filtroProducto = val;
-                                    }
+                                    _filtroProducto = (val == 'Todos' || val == null) ? null : val;
                                   });
                                   _cargarProductos();
                                 },
                               ),
-                              const SizedBox(height: 15),
+                              const SizedBox(height: 10),
                               FilterDropdown(
                                 label: 'Filtrar por proveedor:',
                                 value: _filtroProveedor,
                                 options: ['Todos', ..._proveedores.map((p) => p['nombre']?.toString() ?? '')],
                                 onChanged: (val) {
                                   setState(() {
-                                    if (val == 'Todos' || val == null) {
-                                      _filtroProveedor = null;
-                                    } else {
-                                      _filtroProveedor = val;
-                                    }
+                                    _filtroProveedor = (val == 'Todos' || val == null) ? null : val;
                                   });
                                   _cargarProductos();
                                 },
                               ),
+                              if (_hayFiltrosActivos) ...[
+                                const SizedBox(height: 10),
+                                _LimpiarFiltrosButton(
+                                  onTap: () {
+                                    setState(() {
+                                      _searchController.clear();
+                                      _filtroProducto = null;
+                                      _filtroProveedor = null;
+                                      _ordenStock = null;
+                                      _hayFiltrosActivos = false;
+                                    });
+                                    _cargarProductos();
+                                  },
+                                ),
+                              ],
                             ],
                           ),
                   ),
+
                   const SizedBox(height: 10),
+
                   // TABLA DESKTOP
                   if (isWide)
                     Container(
@@ -337,9 +356,7 @@ class InventarioPageState extends State<InventarioPage> {
                                   borderRadius: BorderRadius.circular(15),
                                   child: Column(
                                     children: [
-                                      // Header fijo
                                       _buildTableHeader(),
-                                      // Filas con scroll interno
                                       SizedBox(
                                         height: 400,
                                         child: SingleChildScrollView(
@@ -428,63 +445,15 @@ class InventarioPageState extends State<InventarioPage> {
                             ? _buildEmptyStateMobile()
                             : _buildCardList(),
 
-                  const SizedBox(height: 20),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 25),
-                    child: isWide
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              if (_hayFiltrosActivos)
-                                _LimpiarFiltrosButton(
-                                  onTap: () {
-                                    setState(() {
-                                      _searchController.clear();
-                                      _filtroProducto = null;
-                                      _filtroProveedor = null;
-                                      _ordenStock = null;
-                                      _hayFiltrosActivos = false;
-                                    });
-                                    _cargarProductos();
-                                  },
-                                ),
-                              if (_hayFiltrosActivos) const SizedBox(width: 12),
-                              _AgregarButton(
-                                onTap: () => mostrarModalAgregarProducto(context, onSuccess: _cargarProductos),
-                              ),
-                            ],
-                          )
-                        : Column(
-                            children: [
-                              if (_hayFiltrosActivos)
-                                _LimpiarFiltrosButton(
-                                  onTap: () {
-                                    setState(() {
-                                      _searchController.clear();
-                                      _filtroProducto = null;
-                                      _filtroProveedor = null;
-                                      _ordenStock = null;
-                                      _hayFiltrosActivos = false;
-                                    });
-                                    _cargarProductos();
-                                  },
-                                ),
-                              const SizedBox(height: 12),
-                              _AgregarButton(
-                                isWide: false,
-                                onTap: () => mostrarModalAgregarProducto(context, onSuccess: _cargarProductos),
-                              ),
-                            ],
-                          ),
-                  ),
-                  const SizedBox(height: 20),
-
+                  // ✅ BANNER DE STOCK BAJO - AHORA ABAJO DE TODO
                   if (_productosStockBajo.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 25),
+                      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
                       child: _buildBannerStockBajo(),
                     ),
+
+                  // Espacio para que el FAB no tape el último elemento
+                  const SizedBox(height: 80),
                 ],
               ),
             ),
@@ -494,6 +463,7 @@ class InventarioPageState extends State<InventarioPage> {
     );
   }
 
+ 
   Widget _buildEmptyState() {
     return SizedBox(
       height: 400,
@@ -539,9 +509,9 @@ class InventarioPageState extends State<InventarioPage> {
       ),
       child: Row(
         children: [
-          Expanded(flex: 1, child: const Text('SKU', style: style)),
-          Expanded(flex: 2, child: const Text('Producto', style: style)),
-          Expanded(flex: 1, child: const Text('Tipo', style: style)),
+          const Expanded(flex: 1, child: Text('SKU', style: style)),
+          const Expanded(flex: 2, child: Text('Producto', style: style)),
+          const Expanded(flex: 1, child: Text('Tipo', style: style)),
           Expanded(
             flex: 1,
             child: Row(
@@ -570,12 +540,12 @@ class InventarioPageState extends State<InventarioPage> {
               ],
             ),
           ),
-          Expanded(flex: 1, child: const Text('Compra', style: style)),
-          Expanded(flex: 1, child: const Text('Venta', style: style)),
-          Expanded(flex: 2, child: const Text('Proveedor', style: style)),
-          Expanded(flex: 2, child: const Text('Descripción', style: style)),
-          Expanded(flex: 2, child: const Text('Clasificación', style: style)),
-          Expanded(flex: 2, child: const Text('Acciones', style: style)),
+          const Expanded(flex: 1, child: Text('Compra', style: style)),
+          const Expanded(flex: 1, child: Text('Venta', style: style)),
+          const Expanded(flex: 2, child: Text('Proveedor', style: style)),
+          const Expanded(flex: 2, child: Text('Descripción', style: style)),
+          const Expanded(flex: 2, child: Text('Clasificación', style: style)),
+          const Expanded(flex: 2, child: Text('Acciones', style: style)),
         ],
       ),
     );
@@ -806,52 +776,6 @@ class _LimpiarFiltrosButtonState extends State<_LimpiarFiltrosButton> {
               Text('Limpiar filtros',
                   style: TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'Itim')),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AgregarButton extends StatefulWidget {
-  final bool isWide;
-  final VoidCallback onTap;
-
-  const _AgregarButton({this.isWide = true, required this.onTap});
-
-  @override
-  State<_AgregarButton> createState() => _AgregarButtonState();
-}
-
-class _AgregarButtonState extends State<_AgregarButton> {
-  bool _hovered = false;
-
-  static const _base = Color(0xFFC0392B);
-  static const _hover = Color(0xFF96211F);
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: widget.isWide ? null : double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-          decoration: BoxDecoration(
-            color: _hovered ? _hover : _base,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: _hovered
-                ? [BoxShadow(color: _base.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))]
-                : [],
-          ),
-          child: const Text(
-            'Agregar producto',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white, fontSize: 16, fontFamily: 'Itim'),
           ),
         ),
       ),

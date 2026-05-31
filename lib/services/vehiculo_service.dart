@@ -1,64 +1,80 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:taller_rodriguez/core/supabase/supabase_client.dart';
 
 class VehiculoService {
-  static const String _baseUrl = 'http://localhost:8080/api';
+  static final _client = SupabaseClientService.client;
 
-  // OBTENER VEHÍCULOS
   static Future<Map<String, dynamic>> obtenerVehiculos({bool entregados = false}) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/vehiculos/taller?entregados=$entregados'),
-        headers: {'Content-Type': 'application/json'},
-      );
-      final data = jsonDecode(response.body);
-      return Map<String, dynamic>.from(data);
+      // Los filtros .eq/.neq DEBEN ir antes de .order()
+      final data = entregados
+          ? await _client
+              .from('vehiculos')
+              .select('*, clientes(nombre, dui), empleados(nombre)')
+              .eq('estado', 'Entregado')
+              .order('fecha_ingreso', ascending: false)
+          : await _client
+              .from('vehiculos')
+              .select('*, clientes(nombre, dui), empleados(nombre)')
+              .neq('estado', 'Entregado')
+              .order('fecha_ingreso', ascending: false);
+
+      final lista = (data as List).map((v) {
+        final Map<String, dynamic> item = Map<String, dynamic>.from(v);
+        final cliente = v['clientes'] as Map?;
+        final empleado = v['empleados'] as Map?;
+        item['cliente_nombre'] = cliente?['nombre'];
+        item['cliente_dui'] = cliente?['dui'];
+        item['empleado_nombre'] = empleado?['nombre'];
+        return item;
+      }).toList();
+
+      return {'success': true, 'data': lista};
     } catch (e) {
-      return {'success': false, 'message': 'Error al conectar con el servidor: $e'};
+      return {'success': false, 'message': 'Error al obtener vehículos: $e'};
     }
   }
 
-  // CREAR VEHÍCULO
   static Future<Map<String, dynamic>> crearVehiculo(Map<String, dynamic> datos) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/vehiculos'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(datos),
-      );
-      final data = jsonDecode(response.body);
-      return Map<String, dynamic>.from(data);
+      final resultado = await _client
+          .from('vehiculos')
+          .insert(datos)
+          .select()
+          .single();
+      return {'success': true, 'data': resultado};
     } catch (e) {
-      return {'success': false, 'message': 'Error al conectar con el servidor: $e'};
+      return {'success': false, 'message': 'Error al crear vehículo: $e'};
     }
   }
 
-  // ACTUALIZAR VEHÍCULO
   static Future<Map<String, dynamic>> actualizarVehiculo(int id, Map<String, dynamic> datos) async {
     try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl/vehiculos/$id'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(datos),
-      );
-      final data = jsonDecode(response.body);
-      return Map<String, dynamic>.from(data);
+      await _client.from('vehiculos').update(datos).eq('id', id);
+      return {'success': true};
     } catch (e) {
-      return {'success': false, 'message': 'Error al conectar con el servidor: $e'};
+      return {'success': false, 'message': 'Error al actualizar vehículo: $e'};
     }
   }
 
-  // ELIMINAR VEHÍCULO
   static Future<Map<String, dynamic>> eliminarVehiculo(int id) async {
     try {
-      final response = await http.delete(
-        Uri.parse('$_baseUrl/vehiculos/$id'),
-        headers: {'Content-Type': 'application/json'},
-      );
-      final data = jsonDecode(response.body);
-      return Map<String, dynamic>.from(data);
+      await _client.from('vehiculos').delete().eq('id', id);
+      return {'success': true};
     } catch (e) {
-      return {'success': false, 'message': 'Error al conectar con el servidor: $e'};
+      return {'success': false, 'message': 'Error al eliminar vehículo: $e'};
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> obtenerVehiculosPorCliente(int clienteId) async {
+    try {
+      final data = await _client
+          .from('vehiculos')
+          .select()
+          .eq('id_cliente', clienteId)
+          .neq('estado', 'Entregado');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      return [];
     }
   }
 }
