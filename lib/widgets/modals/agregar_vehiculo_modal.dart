@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/vehiculo_service.dart';
+import '../../services/cliente_service.dart';
+import '../../services/Empleado_service.dart';
+import '../../models/cliente.dart';
+import '../../models/empleado_back.dart';
 
 class AgregarVehiculoModal extends StatefulWidget {
   final VoidCallback onVehiculoAgregado;
@@ -14,22 +18,50 @@ class AgregarVehiculoModal extends StatefulWidget {
 class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _modeloCtrl = TextEditingController();
-  final TextEditingController _marcaCtrl = TextEditingController();
-  final TextEditingController _placaCtrl = TextEditingController();
-  final TextEditingController _anioCtrl = TextEditingController();
+  final TextEditingController _modeloCtrl       = TextEditingController();
+  final TextEditingController _marcaCtrl        = TextEditingController();
+  final TextEditingController _placaCtrl        = TextEditingController();
+  final TextEditingController _anioCtrl         = TextEditingController();
   final TextEditingController _fechaIngresoCtrl = TextEditingController();
-  final TextEditingController _fechaSalidaCtrl = TextEditingController();
-  final TextEditingController _diagnosticoCtrl = TextEditingController();
+  final TextEditingController _fechaSalidaCtrl  = TextEditingController();
+  final TextEditingController _diagnosticoCtrl  = TextEditingController();
 
-  String? _cliente;
-  String? _empleadoAsignado;
+  // IDs seleccionados (de BD)
+  int? _clienteId;
+  int? _empleadoId;
   String? _estado;
+
+  // Listas cargadas de BD
+  List<Cliente>   _clientes  = [];
+  List<Empleado>  _empleados = [];
+  bool _cargandoDatos = true;
 
   XFile? _imagenVehiculo;
   XFile? _imagenTarjeta;
   bool _subiendoImagen = false;
   bool _guardando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarDatos();
+  }
+
+  Future<void> _cargarDatos() async {
+    try {
+      final clientes  = await ClienteService.getAll();
+      final empleados = await EmpleadoService.getAll();
+      if (mounted) {
+        setState(() {
+          _clientes  = clientes;
+          _empleados = empleados;
+          _cargandoDatos = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _cargandoDatos = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -52,56 +84,61 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
     });
   }
 
-  Future<String?> _subirImagen(XFile imagen, String carpeta, String placa) async {
+  Future<String?> _subirImagen(XFile imagen, String carpeta, String nombre) async {
     try {
-      final bytes = await imagen.readAsBytes();
+      final bytes     = await imagen.readAsBytes();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final path = '$carpeta/${placa}_$timestamp.jpg';
+      final path      = '$carpeta/${nombre}_$timestamp.jpg';
       await Supabase.instance.client.storage.from('vehiculos').uploadBinary(
         path, bytes, fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
       );
       return Supabase.instance.client.storage.from('vehiculos').getPublicUrl(path);
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
   Future<void> _agregarVehiculo() async {
-    if (_modeloCtrl.text.isEmpty || _marcaCtrl.text.isEmpty || _placaCtrl.text.isEmpty || _anioCtrl.text.isEmpty) {
+    if (_modeloCtrl.text.trim().isEmpty || _marcaCtrl.text.trim().isEmpty || _anioCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Completa los campos requeridos: modelo, marca, placa y año'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Completa los campos requeridos: modelo, marca y año'), backgroundColor: Colors.red),
       );
       return;
     }
 
     setState(() => _guardando = true);
 
+    final nombreBase = _placaCtrl.text.isNotEmpty ? _placaCtrl.text : 'vehiculo';
+
     String? urlVehiculo;
     String? urlTarjeta;
 
     if (_imagenVehiculo != null) {
       setState(() => _subiendoImagen = true);
-      urlVehiculo = await _subirImagen(_imagenVehiculo!, 'imagenes', _placaCtrl.text);
+      urlVehiculo = await _subirImagen(_imagenVehiculo!, 'imagenes', nombreBase);
       setState(() => _subiendoImagen = false);
     }
-
     if (_imagenTarjeta != null) {
       setState(() => _subiendoImagen = true);
-      urlTarjeta = await _subirImagen(_imagenTarjeta!, 'tarjetas', _placaCtrl.text);
+      urlTarjeta = await _subirImagen(_imagenTarjeta!, 'tarjetas', nombreBase);
       setState(() => _subiendoImagen = false);
     }
 
     final datos = {
-      'modelo': _modeloCtrl.text,
-      'marca': _marcaCtrl.text,
-      'placa': _placaCtrl.text,
-      'anio': int.tryParse(_anioCtrl.text) ?? 0,
-      'diagnostico': _diagnosticoCtrl.text,
-      'estado': _estado ?? 'En revisión',
-      'fecha_ingreso': _fechaIngresoCtrl.text.isNotEmpty ? _parseFecha(_fechaIngresoCtrl.text) : DateTime.now().toIso8601String(),
-      'fecha_salida': _fechaSalidaCtrl.text.isNotEmpty ? _parseFecha(_fechaSalidaCtrl.text) : null,
-      if (urlVehiculo != null) 'url_imagen_vehiculo': urlVehiculo,
-      if (urlTarjeta != null) 'url_tarjeta_circulacion': urlTarjeta,
+      'modelo'     : _modeloCtrl.text.trim(),
+      'marca'      : _marcaCtrl.text.trim(),
+      if (_placaCtrl.text.trim().isNotEmpty) 'placa': _placaCtrl.text.trim(),
+      'anio'       : int.tryParse(_anioCtrl.text.trim()) ?? 0,
+      'diagnostico': _diagnosticoCtrl.text.trim(),
+      'estado'     : _estado ?? 'En revisión',
+      'fecha_ingreso': _fechaIngresoCtrl.text.isNotEmpty
+          ? _parseFecha(_fechaIngresoCtrl.text)
+          : DateTime.now().toIso8601String(),
+      if (_fechaSalidaCtrl.text.isNotEmpty) 'fecha_salida': _parseFecha(_fechaSalidaCtrl.text),
+      if (_clienteId  != null) 'id_cliente' : _clienteId,
+      if (_empleadoId != null) 'id_empleado': _empleadoId,
+      if (urlVehiculo != null) 'url_imagen_vehiculo'     : urlVehiculo,
+      if (urlTarjeta  != null) 'url_tarjeta_circulacion' : urlTarjeta,
     };
 
     final result = await VehiculoService.crearVehiculo(datos);
@@ -145,62 +182,63 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Center(
-                  child: Text("Agregar Vehículo", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, fontFamily: 'Itim')),
+                  child: Text("Agregar Vehículo",
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, fontFamily: 'Itim')),
                 ),
                 const SizedBox(height: 28),
 
+                // Modelo / Marca / Placa
                 isWide
                     ? Row(children: [
-                        Expanded(child: _buildTextField("Modelo del vehículo", _modeloCtrl)),
+                        Expanded(child: _buildTextField("Modelo del vehículo *", _modeloCtrl)),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildTextField("Marca del vehículo", _marcaCtrl)),
+                        Expanded(child: _buildTextField("Marca del vehículo *", _marcaCtrl)),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildTextField("Placa del vehículo", _placaCtrl)),
+                        Expanded(child: _buildTextField("Placa (opcional)", _placaCtrl)),
                       ])
                     : Column(children: [
-                        _buildTextField("Modelo del vehículo", _modeloCtrl),
+                        _buildTextField("Modelo del vehículo *", _modeloCtrl),
                         const SizedBox(height: 14),
-                        _buildTextField("Marca del vehículo", _marcaCtrl),
+                        _buildTextField("Marca del vehículo *", _marcaCtrl),
                         const SizedBox(height: 14),
-                        _buildTextField("Placa del vehículo", _placaCtrl),
+                        _buildTextField("Placa (opcional)", _placaCtrl),
                       ]),
                 const SizedBox(height: 16),
 
-                isWide
-                    ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _buildDropdown("Cliente", _cliente, ["Juan Pérez", "María Gómez", "Jared Amaya"], (val) => setState(() => _cliente = val)),
-                          const SizedBox(height: 8),
-                          OutlinedButton(onPressed: () {}, child: const Text("Agregar cliente nuevo")),
-                        ])),
-                        const SizedBox(width: 16),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          _buildDropdown("Empleado asignado", _empleadoAsignado, ["Carlos López", "Ana Martínez", "Pedro Ramírez"], (val) => setState(() => _empleadoAsignado = val)),
-                          const SizedBox(height: 8),
-                          OutlinedButton(onPressed: () {}, child: const Text("Agregar empleado nuevo")),
-                        ])),
-                        const SizedBox(width: 16),
-                        Expanded(child: _buildDropdown("Estado", _estado, ["En revisión", "Reparando", "Listo"], (val) => setState(() => _estado = val))),
-                      ])
-                    : Column(children: [
-                        _buildDropdown("Cliente", _cliente, ["Juan Pérez", "María Gómez", "Jared Amaya"], (val) => setState(() => _cliente = val)),
-                        const SizedBox(height: 14),
-                        _buildDropdown("Empleado asignado", _empleadoAsignado, ["Carlos López", "Ana Martínez", "Pedro Ramírez"], (val) => setState(() => _empleadoAsignado = val)),
-                        const SizedBox(height: 14),
-                        _buildDropdown("Estado", _estado, ["En revisión", "Reparando", "Listo"], (val) => setState(() => _estado = val)),
-                      ]),
+                // Cliente / Empleado / Estado
+                _cargandoDatos
+                    ? const Center(child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: CircularProgressIndicator(color: Color(0xFFC0392B)),
+                      ))
+                    : isWide
+                        ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Expanded(child: _buildClienteDropdown()),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildEmpleadoDropdown()),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildEstadoDropdown()),
+                          ])
+                        : Column(children: [
+                            _buildClienteDropdown(),
+                            const SizedBox(height: 14),
+                            _buildEmpleadoDropdown(),
+                            const SizedBox(height: 14),
+                            _buildEstadoDropdown(),
+                          ]),
                 const SizedBox(height: 16),
 
+                // Año / Fecha ingreso / Fecha salida
                 isWide
                     ? Row(children: [
-                        Expanded(child: _buildTextField("Año del vehículo", _anioCtrl, keyboardType: TextInputType.number)),
+                        Expanded(child: _buildTextField("Año del vehículo *", _anioCtrl, keyboardType: TextInputType.number)),
                         const SizedBox(width: 16),
                         Expanded(child: _buildFechaField("Fecha de ingreso", _fechaIngresoCtrl)),
                         const SizedBox(width: 16),
                         Expanded(child: _buildFechaField("Fecha de salida", _fechaSalidaCtrl)),
                       ])
                     : Column(children: [
-                        _buildTextField("Año del vehículo", _anioCtrl, keyboardType: TextInputType.number),
+                        _buildTextField("Año del vehículo *", _anioCtrl, keyboardType: TextInputType.number),
                         const SizedBox(height: 14),
                         _buildFechaField("Fecha de ingreso", _fechaIngresoCtrl),
                         const SizedBox(height: 14),
@@ -208,6 +246,7 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
                       ]),
                 const SizedBox(height: 24),
 
+                // Diagnóstico + imágenes
                 isWide
                     ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Expanded(flex: 2, child: _buildDiagnostico()),
@@ -240,11 +279,14 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
                       ),
                       child: _guardando
                           ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                              const SizedBox(width: 20, height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
                               const SizedBox(width: 12),
-                              Text(_subiendoImagen ? 'Subiendo imágenes...' : 'Guardando...', style: const TextStyle(color: Colors.white, fontSize: 16, fontFamily: 'Itim')),
+                              Text(_subiendoImagen ? 'Subiendo imágenes...' : 'Guardando...',
+                                  style: const TextStyle(color: Colors.white, fontSize: 16, fontFamily: 'Itim')),
                             ])
-                          : const Text("Agregar vehículo", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Itim', color: Colors.white)),
+                          : const Text("Agregar vehículo",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Itim', color: Colors.white)),
                     ),
                   ),
                 ),
@@ -255,6 +297,72 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
       ),
     );
   }
+
+  // ─── Dropdowns desde BD ───────────────────────────────────────────────────
+
+  Widget _buildClienteDropdown() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text("Cliente", style: TextStyle(fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      DropdownButtonFormField<int>(
+        value: _clienteId,
+        hint: const Text("Seleccionar cliente"),
+        isExpanded: true,
+        decoration: InputDecoration(
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+        items: _clientes.map((c) => DropdownMenuItem(
+          value: c.id,
+          child: Text(c.nombre, overflow: TextOverflow.ellipsis),
+        )).toList(),
+        onChanged: (val) => setState(() => _clienteId = val),
+      ),
+    ]);
+  }
+
+  Widget _buildEmpleadoDropdown() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text("Empleado asignado", style: TextStyle(fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      DropdownButtonFormField<int>(
+        value: _empleadoId,
+        hint: const Text("Seleccionar empleado"),
+        isExpanded: true,
+        decoration: InputDecoration(
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+        items: _empleados.map((e) => DropdownMenuItem(
+          value: e.id,
+          child: Text(e.nombre, overflow: TextOverflow.ellipsis),
+        )).toList(),
+        onChanged: (val) => setState(() => _empleadoId = val),
+      ),
+    ]);
+  }
+
+  Widget _buildEstadoDropdown() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text("Estado", style: TextStyle(fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      DropdownButtonFormField<String>(
+        value: _estado,
+        hint: const Text("Seleccionar estado"),
+        isExpanded: true,
+        decoration: InputDecoration(
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+        items: const ['En revisión', 'Reparando', 'Listo']
+            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .toList(),
+        onChanged: (val) => setState(() => _estado = val),
+      ),
+    ]);
+  }
+
+  // ─── Widgets auxiliares ───────────────────────────────────────────────────
 
   Widget _botonImagen(String label, XFile? imagenSeleccionada, bool esVehiculo) {
     final tieneImagen = imagenSeleccionada != null;
@@ -268,11 +376,15 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
           border: Border.all(color: tieneImagen ? const Color(0xFF2E7D32) : const Color(0xFFC0392B)),
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(tieneImagen ? Icons.check_circle : Icons.add_a_photo, color: tieneImagen ? const Color(0xFF2E7D32) : const Color(0xFFC0392B), size: 20),
+          Icon(tieneImagen ? Icons.check_circle : Icons.add_a_photo,
+              color: tieneImagen ? const Color(0xFF2E7D32) : const Color(0xFFC0392B), size: 20),
           const SizedBox(width: 8),
           Flexible(child: Text(
             tieneImagen ? '✓ ${imagenSeleccionada.name}' : label,
-            style: TextStyle(color: tieneImagen ? const Color(0xFF2E7D32) : const Color(0xFFC0392B), fontWeight: FontWeight.w600, fontSize: 13),
+            style: TextStyle(
+              color: tieneImagen ? const Color(0xFF2E7D32) : const Color(0xFFC0392B),
+              fontWeight: FontWeight.w600, fontSize: 13,
+            ),
             overflow: TextOverflow.ellipsis,
           )),
         ]),
@@ -280,29 +392,18 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
     );
   }
 
-  Widget _buildDropdown(String label, String? value, List<String> items, Function(String?) onChanged) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      const SizedBox(height: 6),
-      DropdownButtonFormField<String>(
-        value: value,
-        hint: Text("Seleccionar $label"),
-        isExpanded: true,
-        decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
-        items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
-        onChanged: onChanged,
-      ),
-    ]);
-  }
-
-  Widget _buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(String label, TextEditingController controller,
+      {TextInputType keyboardType = TextInputType.text}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       TextFormField(
         controller: controller,
         keyboardType: keyboardType,
-        decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
+        decoration: InputDecoration(
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
       ),
     ]);
   }
@@ -314,7 +415,10 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
       TextFormField(
         controller: _diagnosticoCtrl,
         maxLines: 5,
-        decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), hintText: "Escriba el diagnóstico inicial del vehículo..."),
+        decoration: InputDecoration(
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          hintText: "Escriba el diagnóstico inicial del vehículo...",
+        ),
       ),
     ]);
   }
@@ -332,10 +436,16 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
           suffixIcon: const Icon(Icons.calendar_today),
         ),
         onTap: () async {
-          DateTime? picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030));
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: DateTime.now(),
+            firstDate: DateTime(2020),
+            lastDate: DateTime(2030),
+          );
           if (picked != null) {
             setState(() {
-              controller.text = "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
+              controller.text =
+                  "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
             });
           }
         },

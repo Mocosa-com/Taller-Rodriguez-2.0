@@ -29,7 +29,7 @@ class Empleado extends Equatable {
 
   factory Empleado.fromJson(Map<String, dynamic> json) {
     return Empleado(
-      id: json['id'] as int?,
+      id: json['id'] != null ? int.tryParse(json['id'].toString()) : null,
       nombre: json['nombre'] as String? ?? '',
       dui: json['dui'] as String? ?? '',
       telefono: json['telefono'] as String? ?? '',

@@ -26,7 +26,7 @@ class Cliente {
   });
 
   factory Cliente.fromJson(Map<String, dynamic> json) => Cliente(
-    id: json['id'] as int?,
+    id: json['id'] != null ? int.tryParse(json['id'].toString()) : null,
     nombre: json['nombre']?.toString() ?? '',
     telefono: json['telefono']?.toString() ?? '',
     dui: json['dui']?.toString() ?? '',

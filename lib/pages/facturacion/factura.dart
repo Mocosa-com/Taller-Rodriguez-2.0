@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:taller_rodriguez/widgets/navigation/sidebar.dart';
 import 'package:taller_rodriguez/services/facturacion_api.dart';
+import 'package:taller_rodriguez/services/factura_pdf_service.dart';
 
 class FacturacionScreen extends StatefulWidget {
   const FacturacionScreen({super.key});
@@ -12,6 +13,7 @@ class FacturacionScreen extends StatefulWidget {
 
 class _FacturacionScreenState extends State<FacturacionScreen> {
   final FacturacionApi _api = FacturacionApi();
+  final FacturaPdfService _pdfService = FacturaPdfService();
   
   bool _cargando = false;
   
@@ -52,7 +54,7 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
   int? get _clienteNit {
     if (_clienteSeleccionado == null) return null;
     final cliente = _clientes.where((c) => c['id'] == _clienteSeleccionado).firstOrNull;
-    return cliente?['nit'] as int?;
+    final nit = cliente?['nit']; return nit != null && nit.toString().isNotEmpty ? 1 : null;
   }
 
   bool get _clienteTieneNit {
@@ -234,7 +236,15 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
     setState(() => _cargando = false);
     
     if (resultado != null && resultado['success'] == true) {
-      _mostrarMensaje('Factura creada exitosamente');
+      // Generar y descargar la factura PDF
+      try {
+        final _raw = resultado['factura'] ?? resultado;
+        final facturaData = _deepConvert(_raw);
+        await _pdfService.generarFacturaPdf(facturaData);
+        _mostrarMensaje('Factura creada y descargada correctamente ✓');
+      } catch (e) {
+        _mostrarMensaje('Factura creada, pero no se pudo generar el PDF: $e', isError: true);
+      }
       await _limpiarFormulario();
       final warnings = resultado['warnings_stock'] as List?;
       if (warnings != null && warnings.isNotEmpty) {
@@ -271,6 +281,18 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
     });
     _descuentoController.clear();
     _busquedaController.clear();
+  }
+
+  /// Convierte recursivamente LinkedMap/Map<dynamic,dynamic> a Map<String,dynamic>
+  Map<String, dynamic> _deepConvert(dynamic obj) {
+    if (obj is Map) {
+      return obj.map((k, v) {
+        if (v is Map) return MapEntry(k.toString(), _deepConvert(v));
+        if (v is List) return MapEntry(k.toString(), v.map((e) => e is Map ? _deepConvert(e) : e).toList());
+        return MapEntry(k.toString(), v);
+      });
+    }
+    return {};
   }
 
   void _mostrarMensaje(String mensaje, {bool isError = false}) {
@@ -379,14 +401,22 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
         _buildDropdown<int?>(
           label: "Vehiculo",
           hint: "Seleccionar vehiculo",
-          items: _vehiculos.map((v) => DropdownMenuItem<int?>(
-            value: v['id'] as int,
-            child: Text('${v['marca']} ${v['modelo']} (${v['placa']})', overflow: TextOverflow.ellipsis),
-          )).toList(),
+          items: [
+            const DropdownMenuItem<int?>(value: null, child: Text('Ninguno')),
+            ..._vehiculos.map((v) => DropdownMenuItem<int?>(
+              value: v['id'] as int?,
+              child: Text(
+                '${v['marca'] ?? ''} ${v['modelo'] ?? ''} (${v['placa'] ?? ''})',
+                overflow: TextOverflow.ellipsis,
+              ),
+            )),
+          ],
           value: _vehiculoSeleccionado,
-          onChanged: (value) {
-            setState(() => _vehiculoSeleccionado = value);
-          },
+          onChanged: _clienteSeleccionado == null
+              ? null
+              : (value) {
+                  setState(() => _vehiculoSeleccionado = value);
+                },
         ),
         
         const SizedBox(height: 14),
@@ -674,8 +704,9 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
     required String hint,
     required List<DropdownMenuItem<T>> items,
     required T? value,
-    required Function(T?) onChanged,
+    required Function(T?)? onChanged,
   }) {
+    final bool disabled = onChanged == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -683,7 +714,7 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: disabled ? Colors.grey.shade100 : Colors.white,
             border: Border.all(color: Colors.grey.shade400),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -692,7 +723,7 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
             value: value,
             isExpanded: true,
             underline: const SizedBox(),
-            hint: Text(hint, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+            hint: Text(hint, style: TextStyle(fontSize: 14, color: disabled ? Colors.grey.shade400 : Colors.grey)),
             items: items,
             onChanged: onChanged,
             borderRadius: BorderRadius.circular(8),

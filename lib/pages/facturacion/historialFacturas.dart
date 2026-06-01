@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:taller_rodriguez/services/facturacion_api.dart';
+import 'package:taller_rodriguez/services/factura_pdf_service.dart';
 import 'package:taller_rodriguez/widgets/navigation/sidebar.dart';
 
 class HistorialFacturasPage extends StatefulWidget {
@@ -11,26 +13,106 @@ class HistorialFacturasPage extends StatefulWidget {
 class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
   static const Color _headerColor = Color(0xFFA61B1B);
 
-  final List<Map<String, String>> _facturas = [
-    {
-      'codigo': 'FAC-0001',
-      'responsable': 'Javier Ruano',
-      'totalVenta': '\$250.00',
-      'fechaEmision': '01/05/2025',
-    },
-    {
-      'codigo': 'FAC-0002',
-      'responsable': 'María López',
-      'totalVenta': '\$980.00',
-      'fechaEmision': '02/05/2025',
-    },
-    {
-      'codigo': 'FAC-0003',
-      'responsable': 'Carlos Pérez',
-      'totalVenta': '\$125.50',
-      'fechaEmision': '03/05/2025',
-    },
-  ];
+  final FacturacionApi _api = FacturacionApi();
+  final FacturaPdfService _pdfService = FacturaPdfService();
+
+  bool _cargando = true;
+  String _busqueda = '';
+  List<Map<String, dynamic>> _facturas = [];
+  List<Map<String, dynamic>> _facturasFiltradas = [];
+
+  final TextEditingController _busquedaCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarFacturas();
+  }
+
+  @override
+  void dispose() {
+    _busquedaCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cargarFacturas() async {
+    setState(() => _cargando = true);
+    try {
+      final data = await _api.obtenerFacturas();
+      setState(() {
+        _facturas = data;
+        _filtrar('');
+        _cargando = false;
+      });
+    } catch (e) {
+      setState(() => _cargando = false);
+      _mostrarMensaje('Error al cargar facturas: $e', isError: true);
+    }
+  }
+
+  void _filtrar(String query) {
+    setState(() {
+      _busqueda = query;
+      if (query.isEmpty) {
+        _facturasFiltradas = List.from(_facturas);
+      } else {
+        final q = query.toLowerCase();
+        _facturasFiltradas = _facturas.where((f) {
+          final codigo = 'FAC-${f['id'].toString().padLeft(4, '0')}';
+          final cliente = (f['clientes']?['nombre'] ?? '').toString().toLowerCase();
+          final tipo = (f['tipo_factura'] ?? '').toString().toLowerCase();
+          return codigo.contains(q) || cliente.contains(q) || tipo.contains(q);
+        }).toList();
+      }
+    });
+  }
+
+  Future<void> _verYDescargarPdf(Map<String, dynamic> facturaResumen) async {
+    setState(() => _cargando = true);
+    try {
+      final facturaCompleta = await _api.obtenerFacturaPorId(facturaResumen['id'] as int);
+      setState(() => _cargando = false);
+
+      if (facturaCompleta == null) {
+        _mostrarMensaje('No se pudo cargar la factura', isError: true);
+        return;
+      }
+
+      _mostrarMensaje('Generando PDF...');
+      await _pdfService.generarFacturaPdf(facturaCompleta);
+      _mostrarMensaje('PDF descargado correctamente ✓');
+    } catch (e) {
+      setState(() => _cargando = false);
+      _mostrarMensaje('Error: $e', isError: true);
+    }
+  }
+
+  void _mostrarMensaje(String msg, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: isError ? 4 : 3),
+      ),
+    );
+  }
+
+  String _formatearFecha(String? iso) {
+    if (iso == null || iso.isEmpty) return '-';
+    try {
+      final f = DateTime.parse(iso).toLocal();
+      final d = f.day.toString().padLeft(2, '0');
+      final m = f.month.toString().padLeft(2, '0');
+      return '$d/$m/${f.year}';
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  String _codigoFactura(dynamic id) =>
+      'FAC-${id.toString().padLeft(4, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -39,30 +121,50 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
     return Scaffold(
       drawer: isWide ? null : const SidebarDrawerContent(),
       appBar: isWide ? null : AppBar(title: const Text('Historial de facturas')),
+      backgroundColor: const Color(0xFFF8F9FA),
       body: Row(
         children: [
           const Sidebar(),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isWide)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 25),
-                      child: Text(
-                        'Historial de facturas',
-                        style: TextStyle(
-                          fontSize: 42,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Itim',
-                        ),
-                      ),
-                    ),
-                  if (isWide) const SizedBox(height: 20),
-
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isWide)
                   Padding(
+                    padding: const EdgeInsets.fromLTRB(25, 20, 25, 0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Historial de facturas',
+                          style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, fontFamily: 'Itim'),
+                        ),
+                        IconButton(
+                          tooltip: 'Actualizar',
+                          onPressed: _cargarFacturas,
+                          icon: const Icon(Icons.refresh, color: Colors.red),
+                        ),
+                      ],
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(25, 16, 25, 0),
+                  child: TextField(
+                    controller: _busquedaCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por código, cliente o tipo...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      fillColor: Colors.white,
+                      filled: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    onChanged: _filtrar,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25),
                     child: Container(
                       decoration: BoxDecoration(
@@ -70,31 +172,36 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
                         borderRadius: BorderRadius.circular(15),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
+                            color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 20,
-                            offset: const Offset(0, 10),
+                            offset: const Offset(0, 6),
                           ),
                         ],
                       ),
-                      child: _facturas.isEmpty
-                          ? _buildEmptyState()
-                          : _buildTable(),
+                      child: _cargando
+                          ? const Center(child: CircularProgressIndicator())
+                          : _facturasFiltradas.isEmpty
+                              ? _buildEmptyState()
+                              : _buildTable(isWide),
                     ),
                   ),
-
-                  const SizedBox(height: 20),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 25),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: _BotonVolver(
-                        onPressed: () => Navigator.pushNamed(context, '/caja'),
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${_facturasFiltradas.length} factura(s)',
+                        style: const TextStyle(color: Colors.black54, fontSize: 13),
                       ),
-                    ),
+                      _BotonVolver(onPressed: () => Navigator.pushNamed(context, '/caja')),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+              ],
             ),
           ),
         ],
@@ -103,164 +210,6 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
   }
 
   Widget _buildEmptyState() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(15),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final bool isWide = constraints.maxWidth > 1000;
-          if (isWide) {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: constraints.maxWidth,
-                height: 400,
-                child: Column(
-                  children: [
-                    _buildTableHeader(),
-                    const Expanded(child: _EmptyContent()),
-                  ],
-                ),
-              ),
-            );
-          }
-          return const SizedBox(
-            height: 400,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [_EmptyContent()],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTable() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(15),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final bool isWide = constraints.maxWidth > 1000;
-          if (isWide) {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: constraints.maxWidth,
-                child: _buildTableContent(isWide: true),
-              ),
-            );
-          }
-          return _buildTableContent(isWide: false);
-        },
-      ),
-    );
-  }
-
-  Widget _buildTableContent({required bool isWide}) {
-    return Column(
-      children: [
-        if (isWide) _buildTableHeader(),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _facturas.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final f = _facturas[index];
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: isWide
-                  ? Row(
-                      children: [
-                        SizedBox(width: 180, child: Text(f['codigo']!,       style: const TextStyle(fontSize: 13))),
-                        SizedBox(width: 200, child: Text(f['responsable']!,  style: const TextStyle(fontSize: 13))),
-                        SizedBox(width: 160, child: Text(f['totalVenta']!,   style: const TextStyle(fontSize: 13))),
-                        SizedBox(width: 140, child: Text(f['fechaEmision']!, style: const TextStyle(fontSize: 13))),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: _botonEditar(),
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(f['codigo']!,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        Text(f['responsable']!,
-                            style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(f['totalVenta']!,
-                                    style: const TextStyle(fontSize: 13)),
-                                Text(f['fechaEmision']!,
-                                    style: const TextStyle(fontSize: 12, color: Colors.black45)),
-                              ],
-                            ),
-                            _botonEditar(),
-                          ],
-                        ),
-                      ],
-                    ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTableHeader() {
-    const style = TextStyle(
-      color: _headerColor,
-      fontWeight: FontWeight.bold,
-      fontSize: 13,
-    );
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFF0F0),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
-      ),
-      child: const Row(
-        children: [
-          SizedBox(width: 180, child: Text('CÓDIGO DE FACTURA', style: style)),
-          SizedBox(width: 200, child: Text('RESPONSABLE',       style: style)),
-          SizedBox(width: 160, child: Text('TOTAL DE VENTA',    style: style)),
-          Expanded(            child: Text('FECHA DE EMISION',  style: style)),
-        ],
-      ),
-    );
-  }
-
-  Widget _botonEditar() {
-    return ElevatedButton(
-      onPressed: () {},
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFC0392B),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      child: const Text(
-        'Editar Factura',
-        style: TextStyle(color: Colors.white, fontSize: 13),
-      ),
-    );
-  }
-}
-
-class _EmptyContent extends StatelessWidget {
-  const _EmptyContent();
-
-  @override
-  Widget build(BuildContext context) {
     return const Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -269,20 +218,160 @@ class _EmptyContent extends StatelessWidget {
         Text(
           'NO HAY FACTURAS REGISTRADAS',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.grey,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
-          ),
+          style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 1),
         ),
       ],
     );
   }
+
+  Widget _buildTable(bool isWide) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(15),
+      child: Column(
+        children: [
+          _buildTableHeader(isWide),
+          Expanded(
+            child: ListView.separated(
+              itemCount: _facturasFiltradas.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, i) {
+                final f = _facturasFiltradas[i];
+                final codigo = _codigoFactura(f['id']);
+                final cliente = f['clientes']?['nombre']?.toString() ?? 'Consumidor Final';
+                final tipo = f['tipo_factura']?.toString() ?? '-';
+                final total = '\$${((f['total'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}';
+                final fecha = _formatearFecha(f['fecha']?.toString());
+
+                if (!isWide) {
+                  return _buildMobileRow(f, codigo, cliente, tipo, total, fecha);
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 130, child: Text(codigo, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                      SizedBox(width: 180, child: Text(cliente, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
+                      SizedBox(width: 140, child: _tipoBadge(tipo)),
+                      SizedBox(width: 120, child: Text(total, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                      SizedBox(width: 120, child: Text(fecha, style: const TextStyle(fontSize: 13))),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _botonDescargar(f),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileRow(Map<String, dynamic> f, String codigo, String cliente,
+      String tipo, String total, String fecha) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(codigo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              _tipoBadge(tipo),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(cliente, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(total, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFC0392B))),
+                Text(fecha, style: const TextStyle(fontSize: 12, color: Colors.black45)),
+              ]),
+              _botonDescargar(f),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableHeader(bool isWide) {
+    const style = TextStyle(color: _headerColor, fontWeight: FontWeight.bold, fontSize: 12);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF0F0),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+      ),
+      child: isWide
+          ? const Row(
+              children: [
+                SizedBox(width: 130, child: Text('CÓDIGO', style: style)),
+                SizedBox(width: 180, child: Text('CLIENTE', style: style)),
+                SizedBox(width: 140, child: Text('TIPO', style: style)),
+                SizedBox(width: 120, child: Text('TOTAL', style: style)),
+                SizedBox(width: 120, child: Text('FECHA', style: style)),
+                Expanded(child: Text('PDF', textAlign: TextAlign.right, style: style)),
+              ],
+            )
+          : const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('FACTURAS', style: style),
+                Text('PDF', style: style),
+              ],
+            ),
+    );
+  }
+
+  Widget _tipoBadge(String tipo) {
+    final esCredito = tipo.toLowerCase().contains('credito') || tipo.toLowerCase().contains('crédito');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: esCredito ? Colors.blue.shade50 : Colors.green.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: esCredito ? Colors.blue.shade200 : Colors.green.shade200),
+      ),
+      child: Text(
+        tipo,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: esCredito ? Colors.blue.shade800 : Colors.green.shade800,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _botonDescargar(Map<String, dynamic> f) {
+    return ElevatedButton.icon(
+      onPressed: () => _verYDescargarPdf(f),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFC0392B),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: const Icon(Icons.picture_as_pdf, size: 14),
+      label: const Text('PDF', style: TextStyle(fontSize: 12)),
+    );
+  }
 }
 
+// ─── Botón Volver ──────────────────────────────────────────────
 class _BotonVolver extends StatefulWidget {
   final VoidCallback onPressed;
-
   const _BotonVolver({required this.onPressed});
 
   @override
@@ -304,26 +393,15 @@ class _BotonVolverState extends State<_BotonVolver> {
           color: _hovered ? const Color(0xFF9B1B1B) : const Color(0xFFC0392B),
           borderRadius: BorderRadius.circular(8),
           boxShadow: _hovered
-              ? [BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                )]
+              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 8, offset: const Offset(0, 4))]
               : [],
         ),
         child: GestureDetector(
           onTap: widget.onPressed,
           child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-            child: Text(
-              'Volver a caja',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontFamily: 'Itim',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            padding: EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+            child: Text('Volver a caja',
+                style: TextStyle(color: Colors.white, fontSize: 15, fontFamily: 'Itim', fontWeight: FontWeight.bold)),
           ),
         ),
       ),

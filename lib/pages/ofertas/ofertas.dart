@@ -45,7 +45,7 @@ class _OfertasScreenState extends State<OfertasScreen> {
   Future<void> _cargarOfertas() async {
     setState(() => _cargando = true);
     try {
-      final ofertas = await _api.obtenerOfertas();
+      final ofertas = await _api.obtenerTodas();
       setState(() => _ofertas = ofertas);
     } catch (e) {
       _mostrarMensaje('Error al cargar ofertas', isError: true);
@@ -53,6 +53,7 @@ class _OfertasScreenState extends State<OfertasScreen> {
       setState(() => _cargando = false);
     }
   }
+
   Future<void> _crearOActualizarOferta() async {
     final nombre = _nombreController.text.trim();
     final descripcion = _descripcionController.text.trim();
@@ -108,21 +109,61 @@ class _OfertasScreenState extends State<OfertasScreen> {
     }
   }
 
-  Future<void> _eliminarOferta(int id) async {
+  /// Soft-delete: solo desactiva, NUNCA elimina de la base de datos
+  Future<void> _desactivarOferta(int id, String nombre) async {
     final confirmacion = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar oferta'),
-        content: const Text('¿Está seguro de eliminar esta oferta?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.block, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Desactivar oferta'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('¿Desea desactivar la oferta "$nombre"?'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'La oferta quedará inactiva pero se conservará el historial.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.block, size: 16),
+            label: const Text('Desactivar'),
           ),
         ],
       ),
@@ -130,14 +171,61 @@ class _OfertasScreenState extends State<OfertasScreen> {
 
     if (confirmacion == true) {
       setState(() => _cargando = true);
-      final resultado = await _api.eliminarOferta(id);
+      final resultado = await _api.desactivarOferta(id);
       setState(() => _cargando = false);
 
       if (resultado['success'] == true) {
-        _mostrarMensaje('Oferta eliminada');
+        _mostrarMensaje('Oferta desactivada correctamente');
         _cargarOfertas();
       } else {
-        _mostrarMensaje(resultado['message'] ?? 'Error al eliminar', isError: true);
+        _mostrarMensaje(resultado['message'] ?? 'Error al desactivar', isError: true);
+      }
+    }
+  }
+
+  /// Reactivar una oferta desactivada
+  Future<void> _reactivarOferta(int id, String nombre) async {
+    final confirmacion = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Reactivar oferta'),
+          ],
+        ),
+        content: Text('¿Desea reactivar la oferta "$nombre"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.check_circle, size: 16),
+            label: const Text('Reactivar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmacion == true) {
+      setState(() => _cargando = true);
+      final resultado = await _api.reactivarOferta(id);
+      setState(() => _cargando = false);
+
+      if (resultado['success'] == true) {
+        _mostrarMensaje('Oferta reactivada correctamente');
+        _cargarOfertas();
+      } else {
+        _mostrarMensaje(resultado['message'] ?? 'Error al reactivar', isError: true);
       }
     }
   }
@@ -166,7 +254,7 @@ class _OfertasScreenState extends State<OfertasScreen> {
     });
   }
 
- void _mostrarMensaje(String mensaje, {bool isError = false}) {
+  void _mostrarMensaje(String mensaje, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -195,20 +283,28 @@ class _OfertasScreenState extends State<OfertasScreen> {
     }
   }
 
- String _formatearFecha(String fechaStr) {
-  try {
-    final fecha = DateTime.parse(fechaStr);
-    final dia = fecha.day.toString().padLeft(2, '0');
-    final mes = fecha.month.toString().padLeft(2, '0');
-    return '$dia/$mes/${fecha.year}';
-  } catch (e) {
-    return fechaStr;
+  String _formatearFecha(String fechaStr) {
+    try {
+      final fecha = DateTime.parse(fechaStr);
+      final dia = fecha.day.toString().padLeft(2, '0');
+      final mes = fecha.month.toString().padLeft(2, '0');
+      return '$dia/$mes/${fecha.year}';
+    } catch (e) {
+      return fechaStr;
+    }
   }
-}
 
   bool _estaActiva(Map<String, dynamic> oferta) {
-    final estado = (oferta['estado_oferta'] ?? '').toString().toLowerCase();
-    return estado == 'activa';
+    return oferta['activo'] == true;
+  }
+
+  bool _estaExpirada(Map<String, dynamic> oferta) {
+    try {
+      final fin = DateTime.parse(oferta['fecha_fin'] ?? '');
+      return fin.isBefore(DateTime.now()) && oferta['activo'] == true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -328,7 +424,8 @@ class _OfertasScreenState extends State<OfertasScreen> {
                             final descuento = int.tryParse(value) ?? 0;
                             if (descuento > 100) {
                               _descuentoController.text = '100';
-                              _descuentoController.selection = TextSelection.fromPosition(TextPosition(offset: _descuentoController.text.length));
+                              _descuentoController.selection = TextSelection.fromPosition(
+                                  TextPosition(offset: _descuentoController.text.length));
                             }
                           },
                           decoration: InputDecoration(
@@ -460,9 +557,11 @@ class _OfertasScreenState extends State<OfertasScreen> {
 
   Widget _buildOffersTablePanel() {
     final bool isWide = MediaQuery.of(context).size.width > 1000;
+
+    // Filtrado: activas = activo:true; expiradas = activo:false
     final ofertasFiltradas = _mostrarExpirados
-        ? _ofertas.where((o) => !_estaActiva(o)).toList()
-        : _ofertas.where((o) => _estaActiva(o)).toList();
+        ? _ofertas.where((o) => o['activo'] == false).toList()
+        : _ofertas.where((o) => o['activo'] == true).toList();
 
     return Card(
       elevation: 4,
@@ -485,6 +584,7 @@ class _OfertasScreenState extends State<OfertasScreen> {
                       Expanded(flex: 1, child: Text("Descuento", textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                       Expanded(flex: 2, child: Text("Inicio", textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                       Expanded(flex: 2, child: Text("Vencimiento", textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                      Expanded(flex: 1, child: Text("Estado", textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                       Expanded(flex: 1, child: Text("Acciones", textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                     ],
                   )
@@ -500,7 +600,7 @@ class _OfertasScreenState extends State<OfertasScreen> {
               padding: const EdgeInsets.all(24),
               child: Center(
                 child: Text(
-                  _mostrarExpirados ? 'No hay ofertas expiradas' : 'No hay ofertas activas',
+                  _mostrarExpirados ? 'No hay ofertas desactivadas' : 'No hay ofertas activas',
                   style: const TextStyle(color: Colors.black45),
                 ),
               ),
@@ -515,7 +615,7 @@ class _OfertasScreenState extends State<OfertasScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                const Text("Mostrar expirados", style: TextStyle(fontSize: 13, color: Colors.black54)),
+                const Text("Mostrar desactivadas", style: TextStyle(fontSize: 13, color: Colors.black54)),
                 Switch(
                   value: _mostrarExpirados,
                   onChanged: (val) => setState(() => _mostrarExpirados = val),
@@ -530,6 +630,8 @@ class _OfertasScreenState extends State<OfertasScreen> {
   }
 
   Widget _buildTableRow(Map<String, dynamic> oferta) {
+    final activa = _estaActiva(oferta);
+    final expirada = _estaExpirada(oferta);
     return Column(
       children: [
         Padding(
@@ -540,6 +642,7 @@ class _OfertasScreenState extends State<OfertasScreen> {
               Expanded(flex: 1, child: Text('${(oferta['porcentaje_descuento'] ?? 0).toInt()}%', textAlign: TextAlign.center)),
               Expanded(flex: 2, child: Text(_formatearFecha(oferta['fecha_inicio'] ?? ''), textAlign: TextAlign.center)),
               Expanded(flex: 2, child: Text(_formatearFecha(oferta['fecha_fin'] ?? ''), textAlign: TextAlign.center)),
+              Expanded(flex: 1, child: _buildEstadoBadge(activa, expirada)),
               Expanded(flex: 1, child: _buildActionButtons(oferta)),
             ],
           ),
@@ -550,6 +653,8 @@ class _OfertasScreenState extends State<OfertasScreen> {
   }
 
   Widget _buildOfferCard(Map<String, dynamic> oferta) {
+    final activa = _estaActiva(oferta);
+    final expirada = _estaExpirada(oferta);
     return Column(
       children: [
         Padding(
@@ -564,7 +669,7 @@ class _OfertasScreenState extends State<OfertasScreen> {
                     child: Text(oferta['nombre_oferta'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                   ),
                   const SizedBox(width: 8),
-                  _buildEstadoBadge(_estaActiva(oferta)),
+                  _buildEstadoBadge(activa, expirada),
                 ],
               ),
               const SizedBox(height: 10),
@@ -581,17 +686,32 @@ class _OfertasScreenState extends State<OfertasScreen> {
                 children: [
                   Expanded(
                     child: TextButton(
-                      onPressed: () => _editarOferta(oferta),
-                      style: TextButton.styleFrom(backgroundColor: const Color(0xFFE53935), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                      onPressed: activa ? () => _editarOferta(oferta) : null,
+                      style: TextButton.styleFrom(
+                        backgroundColor: activa ? const Color(0xFFE53935) : Colors.grey.shade300,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
                       child: const Text("Editar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: TextButton(
-                      onPressed: () => _eliminarOferta(oferta['id']),
-                      style: TextButton.styleFrom(backgroundColor: const Color(0xFF880E4F), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                      child: const Text("Eliminar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      onPressed: () => activa
+                          ? _desactivarOferta(oferta['id'], oferta['nombre_oferta'] ?? '')
+                          : _reactivarOferta(oferta['id'], oferta['nombre_oferta'] ?? ''),
+                      style: TextButton.styleFrom(
+                        backgroundColor: activa ? Colors.orange : Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text(
+                        activa ? "Desactivar" : "Reactivar",
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ],
@@ -604,31 +724,47 @@ class _OfertasScreenState extends State<OfertasScreen> {
     );
   }
 
-  Widget _buildEstadoBadge(bool activo) {
+  Widget _buildEstadoBadge(bool activa, bool expirada) {
+    Color color;
+    String texto;
+    if (!activa) {
+      color = Colors.grey;
+      texto = 'Inactiva';
+    } else if (expirada) {
+      color = Colors.orange;
+      texto = 'Expirada';
+    } else {
+      color = Colors.green;
+      texto = 'Activa';
+    }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: activo ? Colors.green : Colors.orange,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        activo ? 'Activa' : 'Expirada',
-        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+      child: Text(texto, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
     );
   }
 
   Widget _buildActionButtons(Map<String, dynamic> oferta) {
+    final activa = _estaActiva(oferta);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        if (activa)
+          IconButton(
+            tooltip: 'Editar',
+            icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+            onPressed: () => _editarOferta(oferta),
+          ),
         IconButton(
-          icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
-          onPressed: () => _editarOferta(oferta),
-        ),
-        IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-          onPressed: () => _eliminarOferta(oferta['id']),
+          tooltip: activa ? 'Desactivar' : 'Reactivar',
+          icon: Icon(
+            activa ? Icons.block : Icons.check_circle,
+            color: activa ? Colors.orange : Colors.green,
+            size: 20,
+          ),
+          onPressed: () => activa
+              ? _desactivarOferta(oferta['id'], oferta['nombre_oferta'] ?? '')
+              : _reactivarOferta(oferta['id'], oferta['nombre_oferta'] ?? ''),
         ),
       ],
     );
