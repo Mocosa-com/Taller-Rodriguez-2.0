@@ -48,7 +48,6 @@ class _CajaPageState extends State<CajaPage> {
       _mostrarMensaje('Ingresa un monto base válido', isError: true);
       return;
     }
-
     setState(() => _cargando = true);
     final resultado = await CajaService.abrirCaja(base);
     if (resultado['success'] == true) {
@@ -63,7 +62,6 @@ class _CajaPageState extends State<CajaPage> {
 
   Future<void> _cerrarCaja() async {
     if (_cajaAbierta == null) return;
-
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -79,9 +77,7 @@ class _CajaPageState extends State<CajaPage> {
         ],
       ),
     );
-
     if (confirmar != true) return;
-
     setState(() => _cargando = true);
     final resultado = await CajaService.cerrarCaja(_cajaAbierta!['id']);
     if (resultado['success'] == true) {
@@ -134,10 +130,10 @@ class _CajaPageState extends State<CajaPage> {
                 ? const Center(child: CircularProgressIndicator())
                 : SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 25),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 700),
-                        child: Container(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
                           width: double.infinity,
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -150,156 +146,174 @@ class _CajaPageState extends State<CajaPage> {
                               ),
                             ],
                           ),
+                          padding: const EdgeInsets.all(28),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Header
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFFFF0F0),
-                                  borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+                              const Text(
+                                'Caja del taller',
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Itim',
                                 ),
-                                child: const Text('Caja del taller',
-                                  style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, fontFamily: 'Itim')),
                               ),
+                              const SizedBox(height: 20),
 
-                              Padding(
-                                padding: const EdgeInsets.all(28),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                              // Estado
+                              Row(
+                                children: [
+                                  const Text('Estado de la caja:',
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                  const SizedBox(width: 10),
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: _cajaAbierta != null ? Colors.green : Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _cajaAbierta != null ? 'ABIERTA' : 'CERRADA',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: _cajaAbierta != null ? Colors.green : Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+
+                              if (_cajaAbierta != null) ...[
+                                _infoRow('Fecha:', _cajaAbierta!['fecha']?.toString() ?? '-'),
+                                const SizedBox(height: 16),
+                                _infoRow('Hora apertura:', _cajaAbierta!['hora_apertura']?.toString() ?? '-'),
+                                const SizedBox(height: 16),
+                                _infoRow('Responsable:', nombreEmpleado),
+                                const SizedBox(height: 16),
+                                _infoRow('Base inicial:', '\$${_cajaAbierta!['base_inicial']?.toString() ?? '0'}'),
+                                const SizedBox(height: 16),
+                                Row(
                                   children: [
-                                    // Estado
-                                    _infoRow('Estado:', Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 12, height: 12,
-                                          decoration: BoxDecoration(
-                                            color: _cajaAbierta != null ? Colors.green : Colors.red,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          _cajaAbierta != null ? 'ABIERTA' : 'CERRADA',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: _cajaAbierta != null ? Colors.green : Colors.red,
-                                          ),
-                                        ),
-                                      ],
-                                    )),
-                                    const SizedBox(height: 16),
-
-                                    // Responsable (quien está logueado)
-                                    _infoRow('Responsable:', Text(nombreEmpleado,
-                                      style: const TextStyle(fontSize: 16, color: Color(0xFF444444)))),
-                                    const SizedBox(height: 16),
-
-                                    if (_cajaAbierta != null) ...[
-                                      // Fecha apertura
-                                      _infoRow('Fecha apertura:', Text(
-                                        _cajaAbierta!['fecha']?.toString() ?? '-',
-                                        style: const TextStyle(fontSize: 16, color: Color(0xFF444444)),
-                                      )),
-                                      const SizedBox(height: 16),
-
-                                      // Hora apertura
-                                      _infoRow('Hora apertura:', Text(
-                                        _cajaAbierta!['hora_apertura']?.toString() ?? '-',
-                                        style: const TextStyle(fontSize: 16, color: Color(0xFF444444)),
-                                      )),
-                                      const SizedBox(height: 16),
-
-                                      // Base inicial
-                                      _infoRow('Base inicial:', Text(
-                                        '\$${_cajaAbierta!['base_inicial']?.toString() ?? '0'}',
-                                        style: const TextStyle(fontSize: 16, color: Color(0xFF444444)),
-                                      )),
-                                      const SizedBox(height: 16),
-
-                                      // Efectivo actual editable
-                                      _infoRow('Efectivo actual:', Row(
-                                        children: [
-                                          SizedBox(
-                                            width: 120,
-                                            child: TextField(
-                                              controller: _efectivoController,
-                                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
-                                              decoration: InputDecoration(
-                                                prefixText: '\$',
-                                                isDense: true,
-                                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          TextButton(
-                                            onPressed: _actualizarEfectivo,
-                                            child: const Text('Actualizar'),
-                                          ),
-                                        ],
-                                      )),
-                                      const SizedBox(height: 32),
-
-                                      // Botón cerrar
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: _CajaButton(label: 'Cerrar caja', onTap: _cerrarCaja),
-                                      ),
-                                    ] else ...[
-                                      // Campo base inicial para abrir
-                                      const Text('Monto base inicial:',
-                                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                                      const SizedBox(height: 8),
-                                      TextField(
-                                        controller: _baseController,
+                                    const Text('Efectivo actual:',
+                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                    const SizedBox(width: 10),
+                                    SizedBox(
+                                      width: 120,
+                                      child: TextField(
+                                        controller: _efectivoController,
                                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                         inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
                                         decoration: InputDecoration(
                                           prefixText: '\$',
-                                          hintText: '0.00',
+                                          isDense: true,
                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                         ),
                                       ),
-                                      const SizedBox(height: 20),
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: _CajaButton(label: 'Abrir caja', onTap: _abrirCaja),
-                                      ),
-                                    ],
-
-                                    const SizedBox(height: 16),
-
-                                    // Botones historial siempre visibles
-                                    isWide
-                                        ? Row(
-                                            children: [
-                                              Expanded(child: _CajaButton(label: 'Historial de turnos', onTap: () => Navigator.pushNamed(context, '/historialTurnos'))),
-                                              const SizedBox(width: 12),
-                                              Expanded(child: _CajaButton(label: 'Historial de facturas', onTap: () => Navigator.pushNamed(context, '/historialFacturas'))),
-                                            ],
-                                          )
-                                        : Column(
-                                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                                            children: [
-                                              _CajaButton(label: 'Historial de turnos', onTap: () => Navigator.pushNamed(context, '/historialTurnos')),
-                                              const SizedBox(height: 12),
-                                              _CajaButton(label: 'Historial de facturas', onTap: () => Navigator.pushNamed(context, '/historialFacturas')),
-                                            ],
-                                          ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    TextButton(
+                                      onPressed: _actualizarEfectivo,
+                                      child: const Text('Actualizar'),
+                                    ),
                                   ],
                                 ),
-                              ),
+                              ] else ...[
+                                _infoRow('Responsable:', nombreEmpleado),
+                                const SizedBox(height: 16),
+                                const Text('Monto base inicial:',
+                                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: _baseController,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+                                  decoration: InputDecoration(
+                                    prefixText: '\$',
+                                    hintText: '0.00',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                  ),
+                                ),
+                              ],
+
+                              const SizedBox(height: 28),
+
+                              // ── Botones ──────────────────────────────────
+                              isWide
+                                  ? Row(
+                                      children: [
+                                        if (_cajaAbierta == null)
+                                          Expanded(
+                                            child: _CajaButton(
+                                              label: 'Abrir caja',
+                                              onTap: _abrirCaja,
+                                            ),
+                                          ),
+                                        if (_cajaAbierta != null) ...[
+                                          Expanded(
+                                            child: _CajaButton(
+                                              label: 'Cerrar caja',
+                                              onTap: _cerrarCaja,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: _CajaButton(
+                                              label: 'Facturar',
+                                              onTap: () => Navigator.pushNamed(context, '/facturacion'),
+                                            ),
+                                          ),
+                                        ],
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: _CajaButton(
+                                            label: 'Historial de turnos',
+                                            onTap: () => Navigator.pushNamed(context, '/historialTurnos'),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: _CajaButton(
+                                            label: 'Historial de facturas',
+                                            onTap: () => Navigator.pushNamed(context, '/historialFacturas'),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        if (_cajaAbierta == null)
+                                          _CajaButton(label: 'Abrir caja', onTap: _abrirCaja),
+                                        if (_cajaAbierta != null) ...[
+                                          _CajaButton(label: 'Cerrar caja', onTap: _cerrarCaja),
+                                          const SizedBox(height: 12),
+                                          _CajaButton(
+                                            label: 'Facturar',
+                                            onTap: () => Navigator.pushNamed(context, '/facturacion'),
+                                          ),
+                                        ],
+                                        const SizedBox(height: 12),
+                                        _CajaButton(
+                                          label: 'Historial de turnos',
+                                          onTap: () => Navigator.pushNamed(context, '/historialTurnos'),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _CajaButton(
+                                          label: 'Historial de facturas',
+                                          onTap: () => Navigator.pushNamed(context, '/historialFacturas'),
+                                        ),
+                                      ],
+                                    ),
                             ],
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
           ),
@@ -308,13 +322,15 @@ class _CajaPageState extends State<CajaPage> {
     );
   }
 
-  Widget _infoRow(String label, Widget value) {
+  Widget _infoRow(String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
         const SizedBox(width: 10),
-        value,
+        Text(value, style: const TextStyle(fontSize: 16, color: Color(0xFF444444))),
       ],
     );
   }
@@ -324,6 +340,7 @@ class _CajaButton extends StatefulWidget {
   final String label;
   final VoidCallback onTap;
   final double? width;
+
   const _CajaButton({required this.label, required this.onTap, this.width});
 
   @override
@@ -351,12 +368,22 @@ class _CajaButtonState extends State<_CajaButton> {
             color: _hovered ? _hover : _base,
             borderRadius: BorderRadius.circular(8),
             boxShadow: _hovered
-                ? [BoxShadow(color: _base.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))]
+                ? [BoxShadow(
+                    color: _base.withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4))]
                 : [],
           ),
-          child: Text(widget.label,
+          child: Text(
+            widget.label,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Itim')),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Itim',
+            ),
+          ),
         ),
       ),
     );

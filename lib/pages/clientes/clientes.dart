@@ -22,30 +22,30 @@ class _ClientesPageState extends State<ClientesPage> {
 
   static const Color _headerBg = Color(0xFFC0392B);
 
- @override
-void initState() {
-  super.initState();
-  print('CLIENTES PAGE INIT');
-  _cargarClientes();
-}
-
-Future<void> _cargarClientes() async {
-  try {
-    final data = await ClienteService.getAll();
-    setState(() {
-      _clientes = data;
-      _cargando = false;
-    });
-  } catch (e) {
-    setState(() => _cargando = false);
+  @override
+  void initState() {
+    super.initState();
+    print('CLIENTES PAGE INIT');
+    _cargarClientes();
   }
-}
+
+  Future<void> _cargarClientes() async {
+    try {
+      final data = await ClienteService.getAll();
+      setState(() {
+        _clientes = data;
+        _cargando = false;
+      });
+    } catch (e) {
+      setState(() => _cargando = false);
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
-
 
   List<Cliente> get _clientesFiltrados {
     return _clientes.where((c) {
@@ -80,6 +80,31 @@ Future<void> _cargarClientes() async {
       await ClienteService.delete(c.id!);
       _cargarClientes();
     }
+  }
+
+  Future<void> _reportarCliente(Cliente c) async {
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reportar cliente'),
+        content: Text('¿Deseas generar un reporte para ${c.nombre}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // TODO: implementar lógica de reporte
+            },
+            style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF1A6B3A)),
+            child: const Text('Generar reporte'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -175,7 +200,6 @@ Future<void> _cargarClientes() async {
                             ),
                             const SizedBox(height: 20),
 
-                            // Contador de resultados
                             if (_clientes.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -314,7 +338,7 @@ Future<void> _cargarClientes() async {
           Expanded(flex: 3, child: Text('Nombre / Teléfono', style: style)),
           Expanded(flex: 2, child: Text('DUI', style: style)),
           Expanded(flex: 2, child: Text('Frecuencia de visita', style: style)),
-          Expanded(flex: 2, child: Text('Acciones', style: style)),
+          Expanded(flex: 3, child: Text('Acciones', style: style)),
         ],
       ),
     );
@@ -335,8 +359,7 @@ Future<void> _cargarClientes() async {
                         fontWeight: FontWeight.bold, fontSize: 14)),
                 const SizedBox(height: 2),
                 Text(c.telefono,
-                    style:
-                        const TextStyle(fontSize: 13, color: Colors.grey)),
+                    style: const TextStyle(fontSize: 13, color: Colors.grey)),
               ],
             ),
           ),
@@ -350,8 +373,10 @@ Future<void> _cargarClientes() async {
             ),
           ),
           Expanded(
-            flex: 2,
-            child: Row(
+            flex: 3,
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 _AccionButton(
                   label: 'Editar',
@@ -364,11 +389,15 @@ Future<void> _cargarClientes() async {
                     if (result == true) _cargarClientes();
                   },
                 ),
-                const SizedBox(width: 8),
                 _AccionButton(
                   label: 'Eliminar',
                   color: const Color(0xFF7B1111),
                   onTap: () => _eliminarCliente(c),
+                ),
+                _AccionButton(
+                  label: 'Reportar',
+                  color: const Color(0xFF1A6B3A),
+                  onTap: () => _reportarCliente(c),
                 ),
               ],
             ),
@@ -431,12 +460,10 @@ Future<void> _cargarClientes() async {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: const BoxDecoration(
                   color: _headerBg,
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(12)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                 ),
                 child: Row(
                   children: [
@@ -472,8 +499,7 @@ Future<void> _cargarClientes() async {
                 ),
               ),
               Padding(
-                padding:
-                    const EdgeInsets.only(left: 14, right: 14, bottom: 14),
+                padding: const EdgeInsets.only(left: 14, right: 14, bottom: 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -502,6 +528,15 @@ Future<void> _cargarClientes() async {
                             color: const Color(0xFF7B1111),
                             fullWidth: true,
                             onTap: () => _eliminarCliente(c),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _AccionButton(
+                            label: 'Reportar',
+                            color: const Color(0xFF1A6B3A),
+                            fullWidth: true,
+                            onTap: () => _reportarCliente(c),
                           ),
                         ),
                       ],
@@ -599,8 +634,7 @@ class _AccionButtonState extends State<_AccionButton> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           width: widget.fullWidth ? double.infinity : null,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: _hovered ? hoverColor : widget.color,
             borderRadius: BorderRadius.circular(6),

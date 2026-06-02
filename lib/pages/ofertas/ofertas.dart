@@ -605,10 +605,17 @@ class _OfertasScreenState extends State<OfertasScreen> {
                 ),
               ),
             )
-          else if (isWide)
-            ...ofertasFiltradas.map((oferta) => _buildTableRow(oferta)).toList()
           else
-            ...ofertasFiltradas.map((oferta) => _buildOfferCard(oferta)).toList(),
+            SizedBox(
+              height: 363,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: isWide
+                      ? ofertasFiltradas.map((oferta) => _buildTableRow(oferta)).toList()
+                      : ofertasFiltradas.map((oferta) => _buildOfferCard(oferta)).toList(),
+                ),
+              ),
+            ),
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

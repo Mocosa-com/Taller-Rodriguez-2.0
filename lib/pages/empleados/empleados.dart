@@ -53,8 +53,7 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar empleado'),
-        content: const Text(
-            '¿Estás seguro de que deseas eliminar este empleado?'),
+        content: const Text('¿Estás seguro de que deseas eliminar este empleado?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -83,6 +82,31 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
     }
   }
 
+  Future<void> _reportarEmpleado(Empleado empleado) async {
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reportar empleado'),
+        content: Text('¿Deseas generar un reporte para ${empleado.nombre}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // TODO: implementar lógica de reporte
+            },
+            style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF1A6B3A)),
+            child: const Text('Generar reporte'),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Empleado> get _empleadosFiltrados {
     final query = _searchController.text.toLowerCase();
     if (query.isEmpty) return _empleados;
@@ -96,9 +120,7 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
   String _formatSueldo(double sueldo) => '\$ ${sueldo.toStringAsFixed(2)}';
 
   String _formatPorcentaje(double? porcentaje) =>
-      porcentaje != null
-          ? '${porcentaje.toStringAsFixed(0)}%'
-          : 'Sin porcentaje';
+      porcentaje != null ? '${porcentaje.toStringAsFixed(0)}%' : 'Sin porcentaje';
 
   @override
   Widget build(BuildContext context) {
@@ -122,8 +144,7 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
                           children: [
                             if (isWide)
                               const Padding(
-                                padding:
-                                    EdgeInsets.symmetric(horizontal: 25),
+                                padding: EdgeInsets.symmetric(horizontal: 25),
                                 child: Text(
                                   'Empleados',
                                   style: TextStyle(
@@ -134,10 +155,8 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
                                 ),
                               ),
                             if (isWide) const SizedBox(height: 16),
-
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 25),
+                              padding: const EdgeInsets.symmetric(horizontal: 25),
                               child: SearchField(
                                 hint: 'Buscar Empleado',
                                 controller: _searchController,
@@ -145,19 +164,15 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
                               ),
                             ),
                             const SizedBox(height: 20),
-
                             isWide
                                 ? Container(
-                                    margin: const EdgeInsets.symmetric(
-                                        horizontal: 25),
+                                    margin: const EdgeInsets.symmetric(horizontal: 25),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius:
-                                          BorderRadius.circular(15),
+                                      borderRadius: BorderRadius.circular(15),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.15),
+                                          color: Colors.black.withValues(alpha: 0.15),
                                           blurRadius: 20,
                                           offset: const Offset(0, 10),
                                         ),
@@ -170,18 +185,14 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
                                 : _empleadosFiltrados.isEmpty
                                     ? _buildEmptyStateMobile()
                                     : _buildCardList(),
-
                             const SizedBox(height: 20),
-
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 25),
+                              padding: const EdgeInsets.symmetric(horizontal: 25),
                               child: isWide
                                   ? Center(
                                       child: _AgregarEmpleadoButton(
                                           isWide: isWide,
-                                          onEmpleadoAgregado:
-                                              _cargarEmpleados))
+                                          onEmpleadoAgregado: _cargarEmpleados))
                                   : _AgregarEmpleadoButton(
                                       isWide: isWide,
                                       onEmpleadoAgregado: _cargarEmpleados),
@@ -226,8 +237,7 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.person_add_alt_1_outlined,
-                    size: 80, color: Colors.black54),
+                Icon(Icons.person_add_alt_1_outlined, size: 80, color: Colors.black54),
                 SizedBox(height: 16),
                 Text(
                   'NO SE HA AGREGADO NINGÚN EMPLEADO',
@@ -251,86 +261,92 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
     return Column(
       children: [
         _buildTableHeader(),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: empleados.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final e = empleados[index];
-            return Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(e.nombre,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14)),
-                        const SizedBox(height: 2),
-                        Text(e.telefono,
-                            style: const TextStyle(
-                                fontSize: 13, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                      flex: 2,
-                      child: Text(e.dui,
-                          style: const TextStyle(fontSize: 13))),
-                  Expanded(
-                    flex: 3,
-                    child: Text(_formatPorcentaje(e.porcentajeGanancia),
-                        style: const TextStyle(fontSize: 13)),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(_formatSueldo(e.sueldoBase),
-                        style: const TextStyle(fontSize: 13)),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Row(
-                      children: [
-                        _AccionButton(
-                          label: 'Editar',
-                          color: const Color(0xFFC0392B),
-                          onTap: () async {
-                            await showDialog(
-                              context: context,
-                              builder: (context) => AgregarEmpleadoModal(
-                                empleado: e,
-                              ),
-                            );
-                            _cargarEmpleados();
-                          },
+        SizedBox(
+          height: 400,
+          child: Scrollbar(
+            thumbVisibility: true,
+            child: ListView.separated(
+              physics: const ClampingScrollPhysics(),
+              itemCount: empleados.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final e = empleados[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(e.nombre,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14)),
+                            const SizedBox(height: 2),
+                            Text(e.telefono,
+                                style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        _AccionButton(
-                          label: 'Eliminar',
-                          color: const Color(0xFF7B1111),
-                          onTap: () => _eliminarEmpleado(e.id!),
+                      ),
+                      Expanded(
+                          flex: 2,
+                          child: Text(e.dui, style: const TextStyle(fontSize: 13))),
+                      Expanded(
+                        flex: 3,
+                        child: Text(_formatPorcentaje(e.porcentajeGanancia),
+                            style: const TextStyle(fontSize: 13)),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Text(_formatSueldo(e.sueldoBase),
+                            style: const TextStyle(fontSize: 13)),
+                      ),
+                      Expanded(
+                        flex: 5,
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _AccionButton(
+                              label: 'Editar',
+                              color: const Color(0xFFC0392B),
+                              onTap: () async {
+                                await showDialog(
+                                  context: context,
+                                  builder: (context) =>
+                                      AgregarEmpleadoModal(empleado: e),
+                                );
+                                _cargarEmpleados();
+                              },
+                            ),
+                            _AccionButton(
+                              label: 'Eliminar',
+                              color: const Color(0xFF7B1111),
+                              onTap: () => _eliminarEmpleado(e.id!),
+                            ),
+                            _AccionButton(
+                              label: 'Reportar',
+                              color: const Color(0xFF1A6B3A),
+                              onTap: () => _reportarEmpleado(e),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         ),
       ],
     );
   }
 
   Widget _buildTableHeader() {
-    const style = TextStyle(
-        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13);
+    const style =
+        TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: const BoxDecoration(color: _headerBg),
@@ -338,11 +354,9 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
         children: [
           Expanded(flex: 3, child: Text('Nombre / Teléfono', style: style)),
           Expanded(flex: 2, child: Text('DUI', style: style)),
-          Expanded(
-              flex: 3,
-              child: Text('Porcentaje de ganancia', style: style)),
+          Expanded(flex: 3, child: Text('Porcentaje de ganancia', style: style)),
           Expanded(flex: 2, child: Text('Sueldo base', style: style)),
-          Expanded(flex: 3, child: Text('ACCIONES', style: style)),
+          Expanded(flex: 5, child: Text('ACCIONES', style: style)),
         ],
       ),
     );
@@ -354,8 +368,7 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.person_add_alt_1_outlined,
-              size: 80, color: Colors.black54),
+          Icon(Icons.person_add_alt_1_outlined, size: 80, color: Colors.black54),
           SizedBox(height: 16),
           Text(
             'NO SE HA AGREGADO NINGÚN EMPLEADO',
@@ -397,12 +410,10 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: const BoxDecoration(
                   color: _headerBg,
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(12)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                 ),
                 child: Row(
                   children: [
@@ -433,16 +444,14 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
                   children: [
                     _cardRow('DUI', e.dui),
                     const SizedBox(height: 6),
-                    _cardRow('% Ganancia',
-                        _formatPorcentaje(e.porcentajeGanancia)),
+                    _cardRow('% Ganancia', _formatPorcentaje(e.porcentajeGanancia)),
                     const SizedBox(height: 6),
                     _cardRow('Sueldo base', _formatSueldo(e.sueldoBase)),
                   ],
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(
-                    left: 14, right: 14, bottom: 14),
+                padding: const EdgeInsets.only(left: 14, right: 14, bottom: 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -457,9 +466,8 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
                             onTap: () async {
                               await showDialog(
                                 context: context,
-                                builder: (context) => AgregarEmpleadoModal(
-                                  empleado: e,
-                                ),
+                                builder: (context) =>
+                                    AgregarEmpleadoModal(empleado: e),
                               );
                               _cargarEmpleados();
                             },
@@ -472,6 +480,15 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
                             label: 'Eliminar',
                             color: const Color(0xFF7B1111),
                             onTap: () => _eliminarEmpleado(e.id!),
+                            fullWidth: true,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _AccionButton(
+                            label: 'Reportar',
+                            color: const Color(0xFF1A6B3A),
+                            onTap: () => _reportarEmpleado(e),
                             fullWidth: true,
                           ),
                         ),
@@ -499,13 +516,11 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
                 fontWeight: FontWeight.w500,
               )),
         ),
-        Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 13))),
+        Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
       ],
     );
   }
 }
-
 
 class _AccionButton extends StatefulWidget {
   final String label;
@@ -540,8 +555,7 @@ class _AccionButtonState extends State<_AccionButton> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           width: widget.fullWidth ? double.infinity : null,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: _hovered ? hoverColor : widget.color,
             borderRadius: BorderRadius.circular(6),
@@ -571,7 +585,6 @@ class _AccionButtonState extends State<_AccionButton> {
   }
 }
 
-
 class _AgregarEmpleadoButton extends StatefulWidget {
   final bool isWide;
   final VoidCallback onEmpleadoAgregado;
@@ -582,8 +595,7 @@ class _AgregarEmpleadoButton extends StatefulWidget {
   });
 
   @override
-  State<_AgregarEmpleadoButton> createState() =>
-      _AgregarEmpleadoButtonState();
+  State<_AgregarEmpleadoButton> createState() => _AgregarEmpleadoButtonState();
 }
 
 class _AgregarEmpleadoButtonState extends State<_AgregarEmpleadoButton> {
@@ -609,8 +621,7 @@ class _AgregarEmpleadoButtonState extends State<_AgregarEmpleadoButton> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           width: widget.isWide ? 400 : double.infinity,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
           decoration: BoxDecoration(
             color: _hovered ? _hover : _base,
             borderRadius: BorderRadius.circular(8),

@@ -6,6 +6,7 @@ import 'package:taller_rodriguez/widgets/modals/agregar_vehiculo_modal.dart';
 import 'package:taller_rodriguez/widgets/modals/visualizar_vehiculo_modal.dart';
 import 'package:taller_rodriguez/widgets/modals/editar_vehiculo_modal.dart';
 import '../../services/vehiculo_service.dart';
+
 class VehiculosPage extends StatefulWidget {
   const VehiculosPage({super.key});
 
@@ -241,47 +242,56 @@ class _VehiculosPageState extends State<VehiculosPage> {
     return Column(
       children: [
         _buildTableHeader(),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: vehiculos.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final v = vehiculos[index];
-            final fechaIngreso = v['fecha_ingreso'] != null ? DateTime.tryParse(v['fecha_ingreso']) : null;
-            final fechaFormateada = fechaIngreso != null
-                ? '${fechaIngreso.day.toString().padLeft(2, '0')} ${_mes(fechaIngreso.month)} ${fechaIngreso.year}'
-                : '-';
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  SizedBox(width: 48, child: Text('#${v['id']}', style: const TextStyle(fontSize: 13))),
-                  SizedBox(width: 120, child: Text(v['placa'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-                  Expanded(
-                    flex: 3,
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('${v['marca']} ${v['modelo']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text('${v['marca']} ${v['anio']}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    ]),
+        // ── Altura fija + scroll ──────────────────────────────────────
+        SizedBox(
+          height: 400,
+          child: Scrollbar(
+            thumbVisibility: true,
+            child: ListView.separated(
+              physics: const ClampingScrollPhysics(),
+              itemCount: vehiculos.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final v = vehiculos[index];
+                final fechaIngreso = v['fecha_ingreso'] != null ? DateTime.tryParse(v['fecha_ingreso']) : null;
+                final fechaFormateada = fechaIngreso != null
+                    ? '${fechaIngreso.day.toString().padLeft(2, '0')} ${_mes(fechaIngreso.month)} ${fechaIngreso.year}'
+                    : '-';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 48, child: Text('#${v['id']}', style: const TextStyle(fontSize: 13))),
+                      SizedBox(width: 120, child: Text(v['placa'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                      Expanded(
+                        flex: 3,
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('${v['marca']} ${v['modelo']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text('${v['marca']} ${v['anio']}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        ]),
+                      ),
+                      Expanded(flex: 2, child: Align(alignment: Alignment.centerLeft, child: _EstadoChip(estado: v['estado'] ?? ''))),
+                      Expanded(flex: 2, child: Text(fechaFormateada, style: const TextStyle(fontSize: 13))),
+                      Expanded(
+                        flex: 4,
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _AccionButton(label: 'Visualizar', color: const Color(0xFF2979FF), onTap: () => _visualizarVehiculo(v)),
+                            _AccionButton(label: 'Editar', color: const Color(0xFFC0392B), onTap: () => _editarVehiculo(v)),
+                            _AccionButton(label: 'Eliminar', color: const Color(0xFF7B1111), onTap: () => _eliminarVehiculo(v['id'])),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  Expanded(flex: 2, child: Align(alignment: Alignment.centerLeft, child: _EstadoChip(estado: v['estado'] ?? ''))),
-                  Expanded(flex: 2, child: Text(fechaFormateada, style: const TextStyle(fontSize: 13))),
-                  Expanded(
-                    flex: 4,
-                    child: Row(children: [
-                      _AccionButton(label: 'Visualizar', color: const Color(0xFF2979FF), onTap: () => _visualizarVehiculo(v)),
-                      const SizedBox(width: 6),
-                      _AccionButton(label: 'Editar', color: const Color(0xFFC0392B), onTap: () => _editarVehiculo(v)),
-                      const SizedBox(width: 6),
-                      _AccionButton(label: 'Eliminar', color: const Color(0xFF7B1111), onTap: () => _eliminarVehiculo(v['id'])),
-                    ]),
-                  ),
-                ],
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         ),
+        // ─────────────────────────────────────────────────────────────
       ],
     );
   }

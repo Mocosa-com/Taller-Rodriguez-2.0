@@ -137,44 +137,46 @@ class _HistorialTurnosPageState extends State<HistorialTurnosPage> {
               child: Column(
                 children: [
                   _buildTableHeader(),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _turnos.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final t = _turnos[index];
-                      final responsable = t['empleados'] is Map
-                          ? t['empleados']['nombre']?.toString() ?? '-'
-                          : '-';
-                      final estado = t['estado']?.toString() ?? '-';
-                      final esAbierta = estado == 'Abierta';
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          children: [
-                            SizedBox(width: 100, child: Text(_formatearFecha(t['fecha']?.toString()), style: const TextStyle(fontSize: 13))),
-                            SizedBox(width: 90,  child: Text('#${t['id']}', style: const TextStyle(fontSize: 13))),
-                            SizedBox(width: 130, child: Text(responsable, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
-                            SizedBox(width: 90,  child: Text(_formatearMonto(t['base_inicial']), style: const TextStyle(fontSize: 13))),
-                            SizedBox(width: 90,  child: Text(_formatearMonto(t['efectivo_actual']), style: const TextStyle(fontSize: 13))),
-                            SizedBox(width: 90,  child: Text(_formatearMonto(t['total_cierre']), style: const TextStyle(fontSize: 13))),
-                            SizedBox(width: 100, child: Text(_formatearHora(t['hora_apertura']?.toString()), style: const TextStyle(fontSize: 13))),
-                            SizedBox(width: 100, child: Text(_formatearHora(t['hora_cierre']?.toString()), style: const TextStyle(fontSize: 13))),
-                            Expanded(child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: esAbierta ? Colors.green.shade50 : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(estado,
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
-                                  color: esAbierta ? Colors.green : Colors.grey.shade600)),
-                            )),
-                          ],
-                        ),
-                      );
-                    },
+                  SizedBox(
+                    height: 500,
+                    child: ListView.separated(
+                      shrinkWrap: false,
+                      itemCount: _turnos.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final t = _turnos[index];
+                        final responsable = t['empleados'] is Map
+                            ? t['empleados']['nombre']?.toString() ?? '-'
+                            : '-';
+                        final estado = t['estado']?.toString() ?? '-';
+                        final esAbierta = estado == 'Abierta';
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              SizedBox(width: 100, child: Text(_formatearFecha(t['fecha']?.toString()), style: const TextStyle(fontSize: 13))),
+                              SizedBox(width: 90,  child: Text('#${t['id']}', style: const TextStyle(fontSize: 13))),
+                              SizedBox(width: 130, child: Text(responsable, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
+                              SizedBox(width: 90,  child: Text(_formatearMonto(t['base_inicial']), style: const TextStyle(fontSize: 13))),
+                              SizedBox(width: 90,  child: Text(_formatearMonto(t['efectivo_actual']), style: const TextStyle(fontSize: 13))),
+                              SizedBox(width: 90,  child: Text(_formatearMonto(t['total_cierre']), style: const TextStyle(fontSize: 13))),
+                              SizedBox(width: 100, child: Text(_formatearHora(t['hora_apertura']?.toString()), style: const TextStyle(fontSize: 13))),
+                              SizedBox(width: 100, child: Text(_formatearHora(t['hora_cierre']?.toString()), style: const TextStyle(fontSize: 13))),
+                              Expanded(child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: esAbierta ? Colors.green.shade50 : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(estado,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
+                                    color: esAbierta ? Colors.green : Colors.grey.shade600)),
+                              )),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),

@@ -469,9 +469,23 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
               ),
             )
           else if (isWide)
-            ..._proveedores.map((p) => _buildTableRow(p)).toList()
+            SizedBox(
+              height: 295,
+              child: ListView.builder(
+                shrinkWrap: false,
+                itemCount: _proveedores.length,
+                itemBuilder: (context, index) => _buildTableRow(_proveedores[index]),
+              ),
+            )
           else
-            ..._proveedores.map((p) => _buildProveedorCard(p)).toList(),
+            SizedBox(
+              height: 500,
+              child: ListView.builder(
+                shrinkWrap: false,
+                itemCount: _proveedores.length,
+                itemBuilder: (context, index) => _buildProveedorCard(_proveedores[index]),
+              ),
+            ),
         ],
       ),
     );
