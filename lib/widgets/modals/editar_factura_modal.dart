@@ -27,10 +27,10 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
   bool _cargando = true;
   bool _guardando = false;
 
-  // Items editables: lista de mapas con los detalles de la factura
+  
   List<Map<String, dynamic>> _items = [];
 
-  // Controladores de texto para cada ítem (precio y cantidad)
+  
   final List<TextEditingController> _precioCtrl = [];
   final List<TextEditingController> _cantidadCtrl = [];
 
@@ -52,7 +52,7 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
   Future<void> _cargarDatos() async {
     setState(() => _cargando = true);
     try {
-      // Cargar clientes e ítems de la factura en paralelo
+     
       final results = await Future.wait([
         ClienteService.getAll(),
         _api.obtenerItemsFactura(widget.factura['id'] as int),
@@ -61,7 +61,7 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
       final clientes = results[0] as List<Cliente>;
       final items = results[1] as List<Map<String, dynamic>>;
 
-      // Inicializar controladores
+     
       for (final c in _precioCtrl) c.dispose();
       for (final c in _cantidadCtrl) c.dispose();
       _precioCtrl.clear();
@@ -86,7 +86,7 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
     }
   }
 
-  // ── Cálculos en tiempo real ──────────────────────────────────
+ 
   double get _subtotal {
     double s = 0;
     for (int i = 0; i < _items.length; i++) {
@@ -105,9 +105,9 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
   double get _iva => _subtotalConDescuento * 0.13;
   double get _total => _subtotalConDescuento + _iva;
 
-  // ── Guardar ──────────────────────────────────────────────────
+  
   Future<void> _guardar() async {
-    // Validar que no haya cantidades ni precios en cero
+   
     for (int i = 0; i < _items.length; i++) {
       final cantidad = int.tryParse(_cantidadCtrl[i].text) ?? 0;
       final precio = double.tryParse(_precioCtrl[i].text) ?? 0.0;
@@ -123,7 +123,7 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
 
     setState(() => _guardando = true);
 
-    // Construir lista actualizada de ítems
+    
     final itemsActualizados = <Map<String, dynamic>>[];
     for (int i = 0; i < _items.length; i++) {
       final cantidad = int.tryParse(_cantidadCtrl[i].text) ?? 1;
@@ -167,7 +167,7 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
     ));
   }
 
-  // ── UI ───────────────────────────────────────────────────────
+  
   @override
   Widget build(BuildContext context) {
     final codigo = 'FAC-${widget.factura['id'].toString().padLeft(4, '0')}';
@@ -181,7 +181,7 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Encabezado ──
+             
               Row(
                 children: [
                   const Expanded(
@@ -192,7 +192,6 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
                 ],
               ),
 
-              // ── Aviso ──
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 10),
                 padding: const EdgeInsets.all(10),
@@ -209,7 +208,6 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
                 ]),
               ),
 
-              // ── Tipo y cliente ──
               Row(
                 children: [
                   Expanded(child: _buildTipoDropdown()),
@@ -219,7 +217,6 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
               ),
               const SizedBox(height: 16),
 
-              // ── Tabla de ítems ──
               const Text('Ítems de la factura',
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
               const SizedBox(height: 8),
@@ -234,14 +231,13 @@ class _EditarFacturaModalState extends State<EditarFacturaModal> {
                         : _buildItemsTable(),
               ),
 
-              // ── Totales ──
+           
               if (!_cargando && _items.isNotEmpty) ...[
                 const Divider(height: 24),
                 _buildTotales(),
                 const SizedBox(height: 16),
               ],
 
-              // ── Botón guardar ──
               SizedBox(
                 width: double.infinity,
                 height: 50,

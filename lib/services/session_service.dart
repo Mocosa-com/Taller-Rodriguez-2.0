@@ -13,24 +13,24 @@ class SessionService {
   static bool get esSecretaria => cargo.toLowerCase() == 'secretaria';
   static bool get esMecanico => ['mecanico', 'empleado'].contains(cargo.toLowerCase());
 
-  // Llama esto al iniciar sesión
+
   static Future<void> iniciar(Map<String, dynamic> userData) async {
     _currentUser = userData;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, jsonEncode(userData));
   }
 
-  // Llama esto en main.dart antes de runApp para restaurar sesión
+ 
   static Future<bool> restaurar() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_key);
       if (raw != null) {
         _currentUser = jsonDecode(raw) as Map<String, dynamic>;
-        return true; // había sesión guardada
+        return true;
       }
     } catch (_) {}
-    return false; // no había sesión
+    return false; 
   }
 
   static Future<void> cerrar() async {

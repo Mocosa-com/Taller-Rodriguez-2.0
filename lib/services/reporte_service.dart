@@ -3,10 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class ReporteService {
   static final _db = Supabase.instance.client;
 
-  // Guarda un reporte en la tabla 'reportes'
+ 
   static Future<bool> guardarReporte({
-    required String tipo,        // 'cliente' o 'empleado'
-    required int idReferencia,   // id del cliente o empleado
+    required String tipo,      
+    required int idReferencia,   
     required String nombreReferencia,
     required String notas,
     required String creadoPor,
@@ -26,7 +26,7 @@ class ReporteService {
     }
   }
 
-  // Trae todos los reportes ordenados por fecha
+  
   static Future<List<Map<String, dynamic>>> getAll() async {
     try {
       final data = await _db
@@ -39,7 +39,7 @@ class ReporteService {
     }
   }
 
-  // Eliminar reporte
+ 
   static Future<void> eliminar(int id) async {
     await _db.from('reportes').delete().eq('id', id);
   }

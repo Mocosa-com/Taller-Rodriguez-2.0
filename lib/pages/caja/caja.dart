@@ -93,7 +93,7 @@ class _CajaPageState extends State<CajaPage> {
   final resultado = await CajaService.cerrarCaja(_cajaAbierta!['id']);
 
   if (resultado['success'] == true && mounted) {
-    // Mostrar resumen del turno
+   
     final baseInicial     = (resultado['base_inicial']      as num?)?.toDouble() ?? 0;
     final totalVentas     = (resultado['total_ventas']      as num?)?.toDouble() ?? 0;
     final totalEnCaja     = (resultado['total_en_caja']     as num?)?.toDouble() ?? 0;
@@ -167,7 +167,6 @@ class _CajaPageState extends State<CajaPage> {
   }
 }
 
-// Helper para filas del resumen
 Widget _resumenFila(String label, String valor, Color colorValor) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -253,7 +252,7 @@ Widget _resumenFila(String label, String valor, Color colorValor) {
                               ),
                               const SizedBox(height: 20),
 
-                              // Estado
+                             
                               Row(
                                 children: [
                                   const Text('Estado de la caja:',
@@ -336,7 +335,7 @@ Widget _resumenFila(String label, String valor, Color colorValor) {
 
                               const SizedBox(height: 28),
 
-                              // ── Botones ──────────────────────────────────
+                           
                               isWide
                                   ? Row(
                                       children: [

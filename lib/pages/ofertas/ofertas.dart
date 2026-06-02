@@ -109,7 +109,7 @@ class _OfertasScreenState extends State<OfertasScreen> {
     }
   }
 
-  /// Soft-delete: solo desactiva, NUNCA elimina de la base de datos
+
   Future<void> _desactivarOferta(int id, String nombre) async {
     final confirmacion = await showDialog<bool>(
       context: context,

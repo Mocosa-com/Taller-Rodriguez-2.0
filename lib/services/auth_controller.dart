@@ -12,7 +12,7 @@ class AuthController {
     return await SupabaseService.login(usuario, contrasena);
   }
 
-  // REGISTRO DE ADMINISTRADOR
+ 
   static Future<Map<String, dynamic>> registrarAdmin(Map<String, dynamic> datos) async {
     if ((datos['nombre'] ?? '').isEmpty || (datos['contrasena'] ?? '').isEmpty) {
       return {

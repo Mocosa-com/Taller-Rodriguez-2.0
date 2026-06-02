@@ -54,7 +54,7 @@ Future<void> _login() async {
       _mensaje = 'Error de conexión. Inténtalo de nuevo.';
       _cargando = false;
     });
-    print('Error en login: $e'); // Solo para debug en consola
+    
   }
 }
 

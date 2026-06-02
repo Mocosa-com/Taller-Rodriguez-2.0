@@ -21,24 +21,24 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   List<Map<String, dynamic>> _reportesGuardados = [];
 
-  // KPIs
+ 
   double _ventasDia = 0;
   double _saldoCaja = 0;
   int _totalProductos = 0;
   int _vehiculosActivos = 0;
   int _facturasDia = 0;
 
-  // Gráfica de barras: ventas por semana del mes
+ 
   List<double> _ventasProductosSemana = [0, 0, 0, 0];
   List<double> _ventasServiciosSemana = [0, 0, 0, 0];
 
-  // Productos stock bajo
+  
   List<Map<String, dynamic>> _stockBajo = [];
 
-  // Más vendidos
+  
   List<Map<String, dynamic>> _masVendidos = [];
 
-  // Donut
+ 
   double _pctProductos = 0;
   double _pctServicios = 0;
 
@@ -61,7 +61,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
           start: DateTime(hoy.year, 1, 1),
           end: hoy,
         );
-      default: // Este mes
+      default: 
         return DateTimeRange(
           start: DateTime(hoy.year, hoy.month, 1),
           end: hoy,
@@ -104,7 +104,7 @@ Future<void> _cargarReportesGuardados() async {
   final hoy = DateTime.now();
   final inicioDia = DateTime(hoy.year, hoy.month, hoy.day);
 
-  // Ventas del día
+ 
   try {
     final factDia = await _db
         .from('facturacion')
@@ -118,13 +118,13 @@ Future<void> _cargarReportesGuardados() async {
     _facturasDia = factDia.length;
   } catch (_) {}
 
-  // Inventario total
+ 
   try {
     final inv = await _db.from('inventario').select('id').eq('activo', true);
     _totalProductos = inv.length;
   } catch (_) {}
 
-  // Vehículos activos en taller (no entregados)  ← FIX
+ 
   try {
     final vehs = await _db
         .from('vehiculos')
@@ -136,7 +136,7 @@ Future<void> _cargarReportesGuardados() async {
     _vehiculosActivos = 0;
   }
 
-  // Saldo caja (turno abierto)  ← FIX: tabla correcta = apertura_cierre
+
   try {
     final cajas = await _db
         .from('apertura_cierre')
@@ -164,7 +164,7 @@ Future<void> _cargarReportesGuardados() async {
           .gte('fecha', rango.start.toIso8601String())
           .lte('fecha', rango.end.toIso8601String());
 
-      // Dividir el rango en 4 semanas
+    
       final duracion = rango.end.difference(rango.start).inDays;
       final porSemana = (duracion / 4).ceil().clamp(1, 365);
 
@@ -203,8 +203,7 @@ Future<void> _cargarReportesGuardados() async {
 
   Future<void> _cargarStockBajo() async {
     try {
-      // Traer todos los productos activos que no sean servicios y filtrar en Dart
-      // (Supabase no soporta comparación columna vs columna directamente con .filter)
+  
       final data = await _db
           .from('inventario')
           .select('nombre, stock, stock_minimo, tipo')
@@ -218,7 +217,6 @@ Future<void> _cargarReportesGuardados() async {
           .where((d) =>
               (d['stock'] as int? ?? 0) <= (d['stock_minimo'] as int? ?? 0))
           .toList()
-        // Ordenar: sin stock primero, luego por diferencia stock - minimo ascendente
         ..sort((a, b) {
           final diffA = (a['stock'] as int? ?? 0) - (a['stock_minimo'] as int? ?? 0);
           final diffB = (b['stock'] as int? ?? 0) - (b['stock_minimo'] as int? ?? 0);
@@ -230,7 +228,7 @@ Future<void> _cargarReportesGuardados() async {
   Future<void> _cargarMasVendidos() async {
     try {
       final rango = _rango;
-      // Obtener IDs de facturas del período
+  
       final factIds = await _db
           .from('facturacion')
           .select('id')
@@ -793,7 +791,7 @@ Widget _buildReportesGuardados() {
   }
 }
 
-// ─── Widgets de apoyo ──────────────────────────────────────────
+
 
 class _Card extends StatelessWidget {
   final Widget child;

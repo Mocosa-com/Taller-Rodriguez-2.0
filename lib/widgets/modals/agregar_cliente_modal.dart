@@ -14,7 +14,7 @@ class _AgregarClienteModalState extends State<AgregarClienteModal> {
   final _formKey = GlobalKey<FormState>();
   bool _guardando = false;
 
-  // Controladores
+  
   final TextEditingController _nombreCtrl = TextEditingController();
   final TextEditingController _telefonoCtrl = TextEditingController();
   final TextEditingController _duiCtrl = TextEditingController();
@@ -57,13 +57,13 @@ class _AgregarClienteModalState extends State<AgregarClienteModal> {
     super.dispose();
   }
 
-  // ==================== VALIDACIONES ====================
+ 
 
   String? _validarRequerido(String? v) =>
     (v == null || v.trim().isEmpty) ? 'Este campo es obligatorio' : null;
 
 String? _validarTelefono(String? v) {
-  if (v == null || v.trim().isEmpty) return null; // opcional
+  if (v == null || v.trim().isEmpty) return null; 
   if (!RegExp(r'^\d{8}$').hasMatch(v.trim())) {
     return 'Debe tener exactamente 8 dígitos';
   }
@@ -71,7 +71,7 @@ String? _validarTelefono(String? v) {
 }
 
 String? _validarDui(String? v) {
-  if (v == null || v.trim().isEmpty) return null; // opcional
+  if (v == null || v.trim().isEmpty) return null; 
   if (!RegExp(r'^\d{8}-\d$').hasMatch(v.trim())) {
     return 'Formato inválido. Ejemplo: 01234567-8';
   }
@@ -87,7 +87,7 @@ String? _validarNrc(String? v) {
 }
 
 String? _validarEmail(String? v) {
-  if (v == null || v.trim().isEmpty) return null; // opcional
+  if (v == null || v.trim().isEmpty) return null; 
   if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v.trim())) {
     return 'Correo electrónico inválido';
   }
@@ -224,7 +224,7 @@ String? _validarEmail(String? v) {
 
   Widget _field(bool isWide, Widget child) => SizedBox(width: isWide ? 340 : double.infinity, child: child);
 
-  // ... (mantengo los métodos _buildTextField y _buildFrecuenciaField iguales que antes)
+
 
   Widget _buildTextField(String label, TextEditingController controller,
       {TextInputType keyboardType = TextInputType.text,

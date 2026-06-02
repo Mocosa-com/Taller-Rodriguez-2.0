@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:html' as html;
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:taller_rodriguez/widgets/navigation/sidebar.dart';
 import 'package:taller_rodriguez/widgets/inputs/busqueda.dart';
@@ -15,7 +13,6 @@ import 'package:taller_rodriguez/services/inventario_api.dart';
 import 'package:taller_rodriguez/services/proveedor_api.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
 
 class InventarioPage extends StatefulWidget {
   const InventarioPage({super.key});
@@ -27,24 +24,23 @@ class InventarioPage extends StatefulWidget {
 class InventarioPageState extends State<InventarioPage> {
   final TextEditingController _searchController = TextEditingController();
 
-  // Clasificaciones personalizadas que el usuario agrega/edita manualmente
   List<String> _clasificacionesPersonalizadas = [];
-  String? _clasificacionSeleccionada; // null = Todos
+  String? _clasificacionSeleccionada;
   String? _filtroProveedor;
   String? _ordenStock;
 
   final InventarioApi _api = InventarioApi();
   final ProveedorApi _proveedorApi = ProveedorApi();
+
   bool _cargando = false;
   bool _importando = false;
   bool _hayFiltrosActivos = false;
+
   List<Map<String, dynamic>> _proveedores = [];
   List<Map<String, dynamic>> _productos = [];
 
   static const Color _headerColor = Color(0xFFA61B1B);
 
-  // ── Clasificaciones dinámicas ──────────────────────────────
-  /// Une las clasificaciones que vienen de los datos con las creadas manualmente
   List<String> get _todasLasClasificaciones {
     final fromData = _productos
         .map((p) => p['clasificacion']?.toString().trim() ?? '')
@@ -66,95 +62,60 @@ class InventarioPageState extends State<InventarioPage> {
     super.initState();
     _cargarDatosIniciales();
   }
-Future<void> _cargarDatosIniciales() async {
-  setState(() => _cargando = true);
-  
-  final resultados = await Future.wait([
-    _proveedorApi.obtenerProveedores(),
-    _api.obtenerInventario(),
-  ]);
 
-  if (!mounted) return;
-
-  setState(() {
-    _proveedores = resultados[0];
-    _productos = resultados[1];
-    _cargando = false;
-  });
-}
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
- Future<void> _cargarProductos({String? busqueda}) async {
-  setState(() => _cargando = true);
-
-  final textoBusqueda = busqueda ?? _searchController.text.trim();
-
-  _hayFiltrosActivos = textoBusqueda.isNotEmpty ||
-      _clasificacionSeleccionada != null ||
-      _filtroProveedor != null ||
-      _ordenStock != null;
-
-  String? idProveedor;
-  if (_filtroProveedor != null && _filtroProveedor!.isNotEmpty) {
-    final prov = _proveedores.firstWhere(
-      (p) => p['nombre']?.toString() == _filtroProveedor,
-      orElse: () => {},
-    );
-    idProveedor = prov['id']?.toString();
+  Future<void> _cargarDatosIniciales() async {
+    setState(() => _cargando = true);
+    final resultados = await Future.wait([
+      _proveedorApi.obtenerProveedores(),
+      _api.obtenerInventario(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _proveedores = resultados[0];
+      _productos = resultados[1];
+      _cargando = false;
+    });
   }
 
-  final productos = await _api.obtenerInventario(
-    busqueda: textoBusqueda.isEmpty ? null : textoBusqueda,
-    idProveedor: idProveedor,
-    clasificacion: _clasificacionSeleccionada,
-    ordenStock: _ordenStock,
-  );
+  Future<void> _cargarProductos({String? busqueda}) async {
+    setState(() => _cargando = true);
 
-  if (!mounted) return;
+    final textoBusqueda = busqueda ?? _searchController.text.trim();
 
-  setState(() {
-    _productos = productos;
-    _cargando = false;
-  });
-}
+    _hayFiltrosActivos = textoBusqueda.isNotEmpty ||
+        _clasificacionSeleccionada != null ||
+        _filtroProveedor != null ||
+        _ordenStock != null;
 
-Future<void> _cargarProductos({String? busqueda}) async {
-  setState(() => _cargando = true);
+    String? idProveedor;
+    if (_filtroProveedor != null && _filtroProveedor!.isNotEmpty) {
+      final prov = _proveedores.firstWhere(
+        (p) => p['nombre']?.toString() == _filtroProveedor,
+        orElse: () => {},
+      );
+      idProveedor = prov['id']?.toString();
+    }
 
-  final textoBusqueda = busqueda ?? _searchController.text.trim();
-
-  _hayFiltrosActivos = textoBusqueda.isNotEmpty ||
-      _clasificacionSeleccionada != null ||
-      _filtroProveedor != null ||
-      _ordenStock != null;
-
-  String? idProveedor;
-  if (_filtroProveedor != null && _filtroProveedor!.isNotEmpty) {
-    final prov = _proveedores.firstWhere(
-      (p) => p['nombre']?.toString() == _filtroProveedor,
-      orElse: () => {},
+    final productos = await _api.obtenerInventario(
+      busqueda: textoBusqueda.isEmpty ? null : textoBusqueda,
+      idProveedor: idProveedor,
+      clasificacion: _clasificacionSeleccionada,
+      ordenStock: _ordenStock,
     );
-    idProveedor = prov['id']?.toString();
+
+    if (!mounted) return;
+
+    setState(() {
+      _productos = productos;
+      _cargando = false;
+    });
   }
-
-  final productos = await _api.obtenerInventario(
-    busqueda: textoBusqueda.isEmpty ? null : textoBusqueda,
-    idProveedor: idProveedor,
-    clasificacion: _clasificacionSeleccionada,
-    ordenStock: _ordenStock,
-  );
-
-  if (!mounted) return;
-
-  setState(() {
-    _productos = productos;
-    _cargando = false;
-  });
-}
 
   void _limpiarFiltros() {
     setState(() {
@@ -167,13 +128,12 @@ Future<void> _cargarProductos({String? busqueda}) async {
     _cargarProductos();
   }
 
-  // ── Gestión de clasificaciones dinámicas ──────────────────
   void _agregarClasificacion() {
     final ctrl = TextEditingController();
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Nueva clasificación', style: TextStyle(fontFamily: 'Itim')),
+        title: const Text('Nueva clasificación'),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -181,27 +141,23 @@ Future<void> _cargarProductos({String? busqueda}) async {
             hintText: 'Ej: Filtros, Neumáticos...',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
-          textCapitalization: TextCapitalization.words,
-          onSubmitted: (_) => _confirmarAgregarClasif(ctrl),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC0392B)),
-            onPressed: () => _confirmarAgregarClasif(ctrl),
-            child: const Text('Agregar', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              final val = ctrl.text.trim();
+              if (val.isNotEmpty && !_todasLasClasificaciones.contains(val)) {
+                setState(() => _clasificacionesPersonalizadas.add(val));
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Agregar'),
           ),
         ],
       ),
     );
-  }
-
-  void _confirmarAgregarClasif(TextEditingController ctrl) {
-    final val = ctrl.text.trim();
-    if (val.isNotEmpty && !_todasLasClasificaciones.contains(val)) {
-      setState(() => _clasificacionesPersonalizadas.add(val));
-    }
-    Navigator.pop(context);
   }
 
   void _editarClasificacion(String clasifActual) {
@@ -209,14 +165,8 @@ Future<void> _cargarProductos({String? busqueda}) async {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Editar clasificación', style: TextStyle(fontFamily: 'Itim')),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        ),
+        title: const Text('Editar clasificación'),
+        content: TextField(controller: ctrl),
         actions: [
           TextButton(
             onPressed: () {
@@ -242,73 +192,69 @@ Future<void> _cargarProductos({String? busqueda}) async {
               }
               Navigator.pop(context);
             },
-            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
+            child: const Text('Guardar'),
           ),
         ],
       ),
     );
   }
 
- Future<void> _exportarCSV() async {
-  try {
-    final sb = StringBuffer();
-    sb.writeln('SKU,Nombre,Tipo,Clasificacion,Stock,Stock Minimo,Precio Compra,Precio Venta,Descripcion,Proveedor');
+  Future<void> _exportarCSV() async {
+    try {
+      final sb = StringBuffer();
+      sb.writeln('SKU,Nombre,Tipo,Clasificacion,Stock,Stock Minimo,Precio Compra,Precio Venta,Descripcion,Proveedor');
 
-    for (final p in _productos) {
-      String esc(dynamic v) {
-        final s = v?.toString() ?? '';
-        return s.contains(',') || s.contains('"') || s.contains('\n') 
-            ? '"${s.replaceAll('"', '""')}"' 
-            : s;
+      for (final p in _productos) {
+        String esc(dynamic v) {
+          final s = v?.toString() ?? '';
+          return s.contains(',') || s.contains('"') || s.contains('\n')
+              ? '"${s.replaceAll('"', '""')}"'
+              : s;
+        }
+
+        final proveedor = _obtenerNombreProveedor(p['id_proveedor']?.toString());
+
+        sb.writeln([
+          esc(p['sku']),
+          esc(p['nombre']),
+          esc(p['tipo']),
+          esc(p['clasificacion']),
+          esc(p['stock']),
+          esc(p['stock_minimo']),
+          esc(p['precio_compra']),
+          esc(p['precio_venta']),
+          esc(p['descripcion']),
+          esc(proveedor),
+        ].join(','));
       }
 
-      final proveedor = _obtenerNombreProveedor(p['id_proveedor']?.toString());
+      final bytes = utf8.encode(sb.toString());
+      final blob = html.Blob([bytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute("download", "inventario_${DateTime.now().toIso8601String().split('T')[0]}.csv")
+        ..style.display = 'none';
 
-      sb.writeln([
-        esc(p['sku']),
-        esc(p['nombre']),
-        esc(p['tipo']),
-        esc(p['clasificacion']),
-        esc(p['stock']),
-        esc(p['stock_minimo']),
-        esc(p['precio_compra']),
-        esc(p['precio_venta']),
-        esc(p['descripcion']),
-        esc(proveedor),
-      ].join(','));
+      html.document.body!.append(anchor);
+      anchor.click();
+      anchor.remove();
+      html.Url.revokeObjectUrl(url);
+
+      _snack('✅ CSV descargado correctamente');
+    } catch (e) {
+      _snack('Error al exportar: $e', isError: true);
     }
-
-    final bytes = utf8.encode(sb.toString());
-    final blob = html.Blob([bytes]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute("download", "inventario_${DateTime.now().toIso8601String().split('T')[0]}.csv")
-      ..style.display = 'none';
-
-    html.document.body!.append(anchor);
-    anchor.click();
-    anchor.remove();
-    html.Url.revokeObjectUrl(url);
-
-    _snack('✅ CSV descargado correctamente');
-  } catch (e) {
-    _snack('Error al exportar: $e', isError: true);
   }
-}
 
-  // ── Importar CSV ──────────────────────────────────────────
-  Future<void> _importarCSV() async {
-    // Mostrar instrucciones antes de abrir el picker
+
+     Future<void> _importarCSV() async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Importar inventario CSV', style: TextStyle(fontFamily: 'Itim')),
+        title: const Text('Importar CSV'),
         content: const Text(
-          'El CSV debe tener estas columnas en orden:\n\n'
-          'SKU, Nombre, Tipo, Clasificacion, Stock, Stock Minimo,\nPrecio Compra, Precio Venta, Descripcion\n\n'
-          'La primera fila (encabezado) se ignorará.\n'
-          'Usá el CSV exportado como plantilla.',
-          style: TextStyle(fontSize: 13),
+          'CSV esperado:\n'
+          'SKU,Nombre,Tipo,Clasificacion,Descripcion,Precio Compra,Precio Venta,Stock,Stock Minimo',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
@@ -320,6 +266,7 @@ Future<void> _cargarProductos({String? busqueda}) async {
         ],
       ),
     );
+
     if (confirmar != true) return;
 
     try {
@@ -328,83 +275,89 @@ Future<void> _cargarProductos({String? busqueda}) async {
         allowedExtensions: ['csv'],
         withData: true,
       );
+
       if (result == null || result.files.isEmpty) return;
 
       final bytes = result.files.first.bytes;
-      if (bytes == null) { _snack('No se pudo leer el archivo', isError: true); return; }
+      if (bytes == null) return;
 
       final content = utf8.decode(bytes);
       final lines = content.split('\n').where((l) => l.trim().isNotEmpty).toList();
-      if (lines.length < 2) { _snack('El CSV no tiene datos', isError: true); return; }
 
       setState(() => _importando = true);
       int importados = 0;
       int errores = 0;
-      final List<String> errMsgs = [];
+      List<String> logErrores = [];
 
-      for (final linea in lines.skip(1)) {
+      for (int i = 1; i < lines.length; i++) {
         try {
-          final cols = _parsearCSVLinea(linea);
+          final cols = _parsearCSVLinea(lines[i].trim());
           if (cols.length < 2) continue;
-          final nombre = cols[1].trim();
-          if (nombre.isEmpty) continue;
 
           final producto = {
             'sku': cols.length > 0 ? cols[0].trim() : '',
-            'nombre': nombre,
-            'tipo': cols.length > 2 && cols[2].trim().isNotEmpty ? cols[2].trim() : 'Producto',
-            'clasificacion': cols.length > 3 ? cols[3].trim() : '',
-            'stock': cols.length > 4 ? (int.tryParse(cols[4].trim()) ?? 0) : 0,
-            'stock_minimo': cols.length > 5 ? (int.tryParse(cols[5].trim()) ?? 0) : 0,
-            'precio_compra': cols.length > 6 ? (double.tryParse(cols[6].trim()) ?? 0.0) : 0.0,
-            'precio_venta': cols.length > 7 ? (double.tryParse(cols[7].trim()) ?? 0.0) : 0.0,
-            'descripcion': cols.length > 8 ? cols[8].trim() : '',
+            'nombre': cols.length > 1 ? cols[1].trim() : '',
+            'tipo': (cols.length > 2 && cols[2].trim().isNotEmpty) ? cols[2].trim() : 'Producto',
+            'clasificacion': (cols.length > 3 && cols[3].trim().isNotEmpty) ? cols[3].trim() : 'General',
+            'descripcion': (cols.length > 4) ? cols[4].trim() : '',
+            'precio_compra': (cols.length > 5) ? (double.tryParse(cols[5].trim().replaceAll(',', '.')) ?? 0.0) : 0.0,
+            'precio_venta': (cols.length > 6) ? (double.tryParse(cols[6].trim().replaceAll(',', '.')) ?? 0.0) : 0.0,
+            'stock': (cols.length > 7) ? (int.tryParse(cols[7].trim()) ?? 0) : 0,
+            'stock_minimo': (cols.length > 8) ? (int.tryParse(cols[8].trim()) ?? 0) : 5,
           };
+
+          if (producto['nombre'].toString().isEmpty) {
+            throw Exception('Nombre vacío');
+          }
+
           final res = await _api.crearProducto(producto);
-          if (res['success'] == true) {
+
+          if (res != null && (res['success'] == true || res['id'] != null)) {
             importados++;
           } else {
             errores++;
-            errMsgs.add(nombre);
+            logErrores.add('Línea ${i+1}: Error en API');
           }
-        } catch (_) {
+        } catch (e) {
           errores++;
+          logErrores.add('Línea ${i+1}: $e');
         }
       }
 
       setState(() => _importando = false);
       await _cargarProductos();
 
-      final msg = errores == 0
-          ? '$importados producto(s) importados correctamente ✓'
-          : '$importados importados, $errores con error: ${errMsgs.take(3).join(', ')}${errMsgs.length > 3 ? '...' : ''}';
-      _snack(msg, isError: errores > 0 && importados == 0);
+      if (importados > 0) {
+        _snack('$importados producto(s) importados correctamente', isError: false);
+      }
+      if (errores > 0) {
+        _snack('$errores con error\n${logErrores.take(3).join("\n")}', isError: true);
+      }
     } catch (e) {
       setState(() => _importando = false);
-      _snack('Error al importar: $e', isError: true);
+      _snack('Error general: $e', isError: true);
     }
   }
 
-  /// Parser CSV que maneja campos con comillas dobles
   List<String> _parsearCSVLinea(String linea) {
     final result = <String>[];
     var campo = StringBuffer();
     var enComillas = false;
-    for (int i = 0; i < linea.length; i++) {
+    var i = 0;
+
+    while (i < linea.length) {
       final c = linea[i];
       if (c == '"') {
-        if (enComillas && i + 1 < linea.length && linea[i + 1] == '"') {
-          campo.write('"');
-          i++;
-        } else {
-          enComillas = !enComillas;
-        }
+        enComillas = !enComillas;
+        i++;
+        continue;
       } else if (c == ',' && !enComillas) {
         result.add(campo.toString());
         campo = StringBuffer();
       } else {
         campo.write(c);
       }
+      i++;
     }
     result.add(campo.toString());
     return result;
@@ -416,7 +369,6 @@ Future<void> _cargarProductos({String? busqueda}) async {
       content: Text(msg),
       backgroundColor: isError ? Colors.red : const Color(0xFFC0392B),
       behavior: SnackBarBehavior.floating,
-      duration: Duration(seconds: isError ? 5 : 3),
     ));
   }
 
@@ -435,8 +387,7 @@ Future<void> _cargarProductos({String? busqueda}) async {
     return proveedor['nombre']?.toString() ?? '-';
   }
 
-  
-  @override
+    @override
   Widget build(BuildContext context) {
     final bool isWide = MediaQuery.of(context).size.width > 1000;
 
@@ -458,184 +409,179 @@ Future<void> _cargarProductos({String? busqueda}) async {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 25),
-                    child: Row(
-                      children: [
-                        if (isWide)
-                          const Expanded(
-                            child: Text('Inventario',
-                                style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, fontFamily: 'Itim')),
-                          )
-                        else
-                          const Spacer(),
-                        if (_importando)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 12),
-                            child: SizedBox(width: 20, height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFC0392B))),
-                          )
-                        else
-                          OutlinedButton.icon(
-                            onPressed: _importarCSV,
-                            icon: const Icon(Icons.upload_file, size: 16, color: Color(0xFFC0392B)),
-                            label: Text(isWide ? 'Importar CSV' : 'Importar',
-                                style: const TextStyle(color: Color(0xFFC0392B), fontSize: 13)),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFFC0392B)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            ),
-                          ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          onPressed: _productos.isEmpty ? null : _exportarCSV,
-                          icon: const Icon(Icons.download, size: 16, color: Color(0xFFC0392B)),
-                          label: Text(
-                            _clasificacionSeleccionada != null 
-                              ? 'Exportar ${_clasificacionSeleccionada!}' 
-                              : (isWide ? 'Exportar CSV' : 'Exportar'),
-                            style: const TextStyle(color: Color(0xFFC0392B), fontSize: 13)
-                          ),
-                            style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFC0392B)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+           
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 25),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('Inventario',
+          style: TextStyle(
+              fontSize: 42, 
+              fontWeight: FontWeight.bold, 
+              fontFamily: 'Itim',
+              color: Color(0xFF2C2C2C))),
 
-                  if (isWide) const SizedBox(height: 16),
+      const SizedBox(height: 16),
 
-                  
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 25),
-                    child: isWide
-                        ? Row(
-                            children: [
-                              Expanded(
-                                child: SearchField(
-                                  hint: 'Buscar producto',
-                                  controller: _searchController,
-                                  onSubmitted: (_) => _cargarProductos(),
-                                  onSearch: () => _cargarProductos(),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              DropdownButton<String?>(
-                                value: _filtroProveedor,
-                                hint: const Text('Proveedor', style: TextStyle(fontSize: 13)),
-                                underline: const SizedBox(),
-                                borderRadius: BorderRadius.circular(10),
-                                items: [
-                                  const DropdownMenuItem(value: null, child: Text('Todos los proveedores')),
-                                  ..._proveedores.map((p) => DropdownMenuItem(
-                                    value: p['nombre']?.toString(),
-                                    child: Text(p['nombre']?.toString() ?? '', style: const TextStyle(fontSize: 13)),
-                                  )),
-                                ],
-                                onChanged: (val) {
-                                  setState(() => _filtroProveedor = val);
-                                  _cargarProductos();
-                                },
-                              ),
-                              const SizedBox(width: 12),
-                              DDropdownButton<String?>(
-  value: _ordenStock,
-  hint: const Text('Sin orden', style: TextStyle(fontSize: 13)),
-  underline: const SizedBox(),
-  borderRadius: BorderRadius.circular(10),
-  items: const [
-    DropdownMenuItem(value: null, child: Text('Sin orden')),
-    DropdownMenuItem(value: 'asc', child: Text('Stock ↑ menor primero')),
-    DropdownMenuItem(value: 'desc', child: Text('Stock ↓ mayor primero')),
-  ],
-  onChanged: (val) {
-    setState(() => _ordenStock = val);
-    _cargarProductos();
-  },
+     
+      Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: SearchField(
+              hint: 'Buscar producto o servicio',
+              controller: _searchController,
+              onSubmitted: (_) => _cargarProductos(),
+              onSearch: () => _cargarProductos(),
+            ),
+          ),
+
+          const SizedBox(width: 16),
+
+        
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: DropdownButton<String?>(
+              value: _filtroProveedor,
+              hint: const Text('Todos los proveedores'),
+              underline: const SizedBox(),
+              borderRadius: BorderRadius.circular(12),
+              isDense: true,
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+              icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFFC0392B)),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Todos los proveedores')),
+                ..._proveedores.map((p) => DropdownMenuItem(
+                      value: p['nombre']?.toString(),
+                      child: Text(p['nombre']?.toString() ?? ''),
+                    )),
+              ],
+              onChanged: (val) {
+                setState(() => _filtroProveedor = val);
+                _cargarProductos();
+              },
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+      
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: DropdownButton<String?>(
+              value: _ordenStock,
+              hint: const Text('Sin orden'),
+              underline: const SizedBox(),
+              borderRadius: BorderRadius.circular(12),
+              isDense: true,
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+              icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFFC0392B)),
+              items: const [
+                DropdownMenuItem(value: null, child: Text('Sin orden')),
+                DropdownMenuItem(value: 'asc', child: Text('Stock ↑ menor primero')),
+                DropdownMenuItem(value: 'desc', child: Text('Stock ↓ mayor primero')),
+              ],
+              onChanged: (val) {
+                setState(() => _ordenStock = val);
+                _cargarProductos();
+              },
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+         
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: DropdownButton<String?>(
+              value: null,
+              hint: const Text('Todos'),
+              underline: const SizedBox(),
+              borderRadius: BorderRadius.circular(12),
+              isDense: true,
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+              icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFFC0392B)),
+              items: const [
+                DropdownMenuItem(value: null, child: Text('Todos')),
+                DropdownMenuItem(value: 'Producto', child: Text('Producto')),
+                DropdownMenuItem(value: 'Servicio', child: Text('Servicio')),
+              ],
+              onChanged: (val) {
+                
+              },
+            ),
+          ),
+
+          const SizedBox(width: 16),
+
+         
+          OutlinedButton.icon(
+            onPressed: _importarCSV,
+            icon: const Icon(Icons.upload_file, size: 18, color: Color(0xFFC0392B)),
+            label: const Text('Importar CSV'),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFC0392B)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          OutlinedButton.icon(
+            onPressed: _productos.isEmpty ? null : _exportarCSV,
+            icon: const Icon(Icons.download, size: 18, color: Color(0xFFC0392B)),
+            label: Text(_clasificacionSeleccionada != null 
+                ? 'Exportar ${_clasificacionSeleccionada!}' 
+                : 'Exportar Todo'),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFC0392B)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
 ),
-                                onChanged: (val) {
-                                  setState(() => _ordenStock = val);
-                                  _cargarProductos();
-                                },
-                              ),
-                              if (_hayFiltrosActivos) ...[
-                                const SizedBox(width: 10),
-                                TextButton.icon(
-                                  onPressed: _limpiarFiltros,
-                                  icon: const Icon(Icons.filter_alt_off, size: 16, color: Color(0xFF6A1B9A)),
-                                  label: const Text('Limpiar', style: TextStyle(color: Color(0xFF6A1B9A), fontSize: 13)),
-                                ),
-                              ],
-                            ],
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              SearchField(
-                                hint: 'Buscar producto',
-                                controller: _searchController,
-                                onSubmitted: (_) => _cargarProductos(),
-                                onSearch: () => _cargarProductos(),
-                              ),
-                              const SizedBox(height: 8),
-                              DropdownButtonFormField<String?>(
-                                value: _filtroProveedor,
-                                hint: const Text('Todos los proveedores'),
-                                decoration: InputDecoration(
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                ),
-                                items: [
-                                  const DropdownMenuItem(value: null, child: Text('Todos los proveedores')),
-                                  ..._proveedores.map((p) => DropdownMenuItem(
-                                    value: p['nombre']?.toString(),
-                                    child: Text(p['nombre']?.toString() ?? ''),
-                                  )),
-                                ],
-                                onChanged: (val) {
-                                  setState(() => _filtroProveedor = val);
-                                  _cargarProductos();
-                                },
-                              ),
-                              if (_hayFiltrosActivos) ...[
-                                const SizedBox(height: 6),
-                                TextButton.icon(
-                                  onPressed: _limpiarFiltros,
-                                  icon: const Icon(Icons.filter_alt_off, size: 16),
-                                  label: const Text('Limpiar filtros'),
-                                ),
-                              ],
-                            ],
-                          ),
-                  ),
-
                   const SizedBox(height: 12),
-
-                  // ── ISLAS DINÁMICAS DE CLASIFICACIÓN ──
                   _buildClasificacionChips(),
-
                   const SizedBox(height: 12),
 
-                  // ── Tabla desktop ──
+                 
                   if (isWide)
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 25),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(15),
-                        boxShadow: [BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 20, offset: const Offset(0, 10),
-                        )],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          )
+                        ],
                       ),
                       child: _cargando
-                          ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
+                          ? const SizedBox(height: 300, child: Center(child: CircularProgressIndicator()))
                           : _productos.isEmpty
                               ? _buildEmptyState()
                               : ClipRRect(
@@ -654,17 +600,17 @@ Future<void> _cargarProductos({String? busqueda}) async {
                                     ],
                                   ),
                                 ),
-                    ),
-
-                  // ── Lista móvil ──
-                  if (!isWide)
+                    )
+                 
+                  else
                     _cargando
-                        ? const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))
+                        ? const Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Center(child: CircularProgressIndicator()))
                         : _productos.isEmpty
                             ? _buildEmptyStateMobile()
                             : _buildCardList(),
 
-                  // ── Banner stock bajo ──
                   if (_productosStockBajo.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
@@ -681,7 +627,6 @@ Future<void> _cargarProductos({String? busqueda}) async {
     );
   }
 
-  // ── ISLAS DINÁMICAS ───────────────────────────────────────
   Widget _buildClasificacionChips() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -690,7 +635,7 @@ Future<void> _cargarProductos({String? busqueda}) async {
         runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          // "Todos"
+          
           _ClasifChip(
             label: 'Todos',
             selected: _clasificacionSeleccionada == null,
@@ -701,7 +646,7 @@ Future<void> _cargarProductos({String? busqueda}) async {
             },
             onLongPress: null,
           ),
-          // Chips dinámicos (datos + personalizados)
+        
           ..._todasLasClasificaciones.map((c) {
             final esPersonalizada = _clasificacionesPersonalizadas.contains(c);
             return _ClasifChip(
@@ -716,7 +661,7 @@ Future<void> _cargarProductos({String? busqueda}) async {
               onLongPress: esPersonalizada ? () => _editarClasificacion(c) : null,
             );
           }),
-          // Botón nueva clasificación
+       
           ActionChip(
             avatar: const Icon(Icons.add, size: 16, color: Color(0xFFC0392B)),
             label: const Text('Nueva', style: TextStyle(fontSize: 12, color: Color(0xFFC0392B))),
@@ -729,7 +674,6 @@ Future<void> _cargarProductos({String? busqueda}) async {
     );
   }
 
-  // ── TABLA ─────────────────────────────────────────────────
   Widget _buildTableHeader() {
     const style = TextStyle(color: _headerColor, fontWeight: FontWeight.bold, fontSize: 13);
     return Container(
@@ -1003,7 +947,6 @@ Future<void> _cargarProductos({String? busqueda}) async {
   }
 }
 
-// ── Chip de clasificación ──────────────────────────────────
 class _ClasifChip extends StatelessWidget {
   final String label;
   final bool selected;

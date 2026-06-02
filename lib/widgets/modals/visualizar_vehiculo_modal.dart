@@ -20,7 +20,7 @@ class VisualizarVehiculoModal extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Título
+            
               Row(
                 children: [
                   const Expanded(
@@ -38,11 +38,10 @@ class VisualizarVehiculoModal extends StatelessWidget {
               const Divider(),
               const SizedBox(height: 16),
 
-              // Info principal
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Imagen del vehículo
+                
                   Container(
                     width: 200,
                     height: 150,
@@ -68,7 +67,7 @@ class VisualizarVehiculoModal extends StatelessWidget {
                   ),
                   const SizedBox(width: 20),
 
-                  // Datos básicos
+                 
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,7 +90,7 @@ class VisualizarVehiculoModal extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // Diagnóstico
+              
               if (vehiculo['diagnostico'] != null && vehiculo['diagnostico'].toString().isNotEmpty) ...[
                 const Text('Diagnóstico', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
@@ -111,7 +110,7 @@ class VisualizarVehiculoModal extends StatelessWidget {
                 const SizedBox(height: 20),
               ],
 
-              // Tarjeta de circulación
+              
               if (urlTarjeta != null) ...[
                 const Text('Tarjeta de Circulación', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),

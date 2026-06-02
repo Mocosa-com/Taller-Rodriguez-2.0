@@ -24,13 +24,13 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
   bool _isEditing = false;
   bool _isUploadingImage = false;
 
-  // Para web usamos bytes en lugar de File
+
   XFile? _pickedFile;
 
   late AnimationController _editBtnController;
   late Animation<double> _editBtnScale;
 
-  // Colores rojo del tema
+ 
   static const Color kRed = Color(0xFFE53935);
   static const Color kRedDark = Color(0xFFB71C1C);
   static const Color kRedLight = Color(0xFFEF5350);
@@ -62,14 +62,14 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  // ==================== SUBIR IMAGEN (compatible Web) ====================
+  
   Future<void> _pickAndUploadImage() async {
   final picker = ImagePicker();
   final picked = await picker.pickImage(
     source: ImageSource.gallery,
-    imageQuality: 40,      // ⬇️ antes era 80
-    maxWidth: 300,         // ⬇️ máximo 300px de ancho
-    maxHeight: 300,        // ⬇️ máximo 300px de alto
+    imageQuality: 40,      
+    maxWidth: 300,         
+    maxHeight: 300,        
   );
   if (picked == null) return;
 
@@ -116,7 +116,7 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
   }
 }
 
-  // ==================== CAMBIAR CONTRASEÑA ====================
+  
   Future<void> _cambiarContrasena() async {
     final oldPass = _oldPasswordController.text.trim();
     final newPass = _newPasswordController.text.trim();
@@ -150,7 +150,7 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
     }
   }
 
-  // ==================== ACTUALIZAR DATOS ====================
+
   Future<void> _actualizarDatos() async {
     try {
       await Supabase.instance.client
@@ -178,7 +178,7 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
     );
   }
 
-  // ==================== CAMPO DE TEXTO ====================
+ 
   Widget _buildField(String label, TextEditingController controller, {bool editable = false}) {
     final canEdit = editable && _isEditing;
     return Column(
@@ -222,7 +222,6 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
     );
   }
 
-  // ==================== BOTÓN EDITAR LLAMATIVO ====================
   Widget _buildEditButton() {
     return GestureDetector(
       onTapDown: (_) => _editBtnController.forward(),
@@ -286,7 +285,7 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
     );
   }
 
-  // ==================== AVATAR EDITABLE ====================
+
   Widget _buildAvatar() {
     return FutureBuilder<Widget>(
       future: _buildAvatarImage(),
@@ -423,14 +422,14 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
                     ),
                     child: Column(
                       children: [
-                        // Botón editar
+                       
                         Align(
                           alignment: Alignment.centerRight,
                           child: _buildEditButton(),
                         ),
                         const SizedBox(height: 24),
 
-                        // Fila 1: Nombre (editable) | DUI (solo lectura)
+                      
                         Row(children: [
                           Expanded(child: _buildField('Nombre', _nombreController, editable: true)),
                           const SizedBox(width: 20),
@@ -443,7 +442,7 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
                         ]),
                         const SizedBox(height: 20),
 
-                        // Fila 2: Teléfono (editable) | Fecha Contratación (solo lectura)
+                      
                         Row(children: [
                           Expanded(child: _buildField('Teléfono', _telefonoController, editable: true)),
                           const SizedBox(width: 20),
@@ -456,7 +455,7 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
                         ]),
                         const SizedBox(height: 20),
 
-                        // Fila 3: Sueldo | Porcentaje (solo lectura)
+                        
                         Row(children: [
                           Expanded(
                             child: _buildField(
@@ -486,7 +485,7 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
                         ),
                         const SizedBox(height: 20),
 
-                        // Contraseñas siempre editables
+                       
                         _buildField('Contraseña Actual', _oldPasswordController, editable: true),
                         const SizedBox(height: 14),
                         _buildField('Nueva Contraseña', _newPasswordController, editable: true),
@@ -495,7 +494,7 @@ class _PerfilPageState extends State<PerfilPage> with SingleTickerProviderStateM
 
                         const SizedBox(height: 24),
 
-                        // Botón cambiar contraseña
+                     
                         SizedBox(
                           width: double.infinity,
                           height: 52,

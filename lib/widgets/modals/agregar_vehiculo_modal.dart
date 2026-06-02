@@ -188,7 +188,6 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
                 ),
                 const SizedBox(height: 28),
 
-                // Modelo / Marca / Placa
                 isWide
                     ? Row(children: [
                         Expanded(child: _buildTextField("Modelo del vehículo *", _modeloCtrl)),
@@ -206,7 +205,7 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
                       ]),
                 const SizedBox(height: 16),
 
-                // Cliente / Empleado / Estado
+               
                 _cargandoDatos
                     ? const Center(child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
@@ -229,7 +228,7 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
                           ]),
                 const SizedBox(height: 16),
 
-                // Año / Fecha ingreso / Fecha salida
+              
                 isWide
                     ? Row(children: [
                         Expanded(child: _buildTextField("Año del vehículo *", _anioCtrl, keyboardType: TextInputType.number)),
@@ -247,7 +246,7 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
                       ]),
                 const SizedBox(height: 24),
 
-                // Diagnóstico + imágenes
+               
                 isWide
                     ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Expanded(flex: 2, child: _buildDiagnostico()),
@@ -299,7 +298,7 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
     );
   }
 
-  // ─── Dropdowns desde BD ───────────────────────────────────────────────────
+  
 
   Widget _buildClienteDropdown() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -320,14 +319,14 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
         onChanged: (val) => setState(() => _clienteId = val),
       ),
       const SizedBox(height: 8),
-      // Botón rápido para agregar cliente sin salir del módulo
+    
       TextButton.icon(
         onPressed: () async {
           await showDialog(
             context: context,
             builder: (_) => const AgregarClienteModal(),
           );
-          // Recargar lista de clientes después de agregar
+         
           final clientes = await ClienteService.getAll();
           if (mounted) {
             setState(() => _clientes = clientes);
@@ -390,7 +389,7 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
     ]);
   }
 
-  // ─── Widgets auxiliares ───────────────────────────────────────────────────
+ 
 
   Widget _botonImagen(String label, XFile? imagenSeleccionada, bool esVehiculo) {
     final tieneImagen = imagenSeleccionada != null;

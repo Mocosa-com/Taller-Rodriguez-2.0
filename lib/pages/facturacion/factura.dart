@@ -314,16 +314,15 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
     setState(() => _cargando = false);
     
     if (resultado != null && resultado['success'] == true) {
-      // Generar y descargar la factura PDF
-      try {
+    
         final _raw = resultado['factura'] ?? resultado;
         final facturaData = _deepConvert(_raw);
         final montoPagoTexto = _pagoController.text.trim();
-        // Si no ingresó monto, usar el total exacto (cambio = $0.00)
+      
         final montoPago = montoPagoTexto.isNotEmpty
             ? (double.tryParse(montoPagoTexto) ?? _total)
             : _total;
-        // Usar el total local como respaldo por si el API no lo devuelve correctamente
+      
         if (!facturaData.containsKey('total') || (facturaData['total'] as num? ?? 0) == 0) {
           facturaData['total'] = _total;
         }
@@ -371,7 +370,6 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
     _pagoController.clear();
   }
 
-  /// Convierte recursivamente LinkedMap/Map<dynamic,dynamic> a Map<String,dynamic>
   Map<String, dynamic> _deepConvert(dynamic obj) {
     if (obj is Map) {
       return obj.map((k, v) {

@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class FacturacionApi {
   static get _db => Supabase.instance.client;
 
-  // ─── CLIENTES ──────────────────────────────────────────────
+  
   Future<List<Map<String, dynamic>>> obtenerClientes() async {
     try {
       final data = await _db
@@ -17,7 +17,7 @@ class FacturacionApi {
     }
   }
 
-  // ─── VEHICULOS POR CLIENTE ─────────────────────────────────
+  
   Future<List<Map<String, dynamic>>> obtenerVehiculosPorCliente(int? clienteId) async {
     if (clienteId == null) return [];
     try {
@@ -33,7 +33,7 @@ class FacturacionApi {
     }
   }
 
-  // ─── OFERTAS ACTIVAS ───────────────────────────────────────
+  
   Future<List<Map<String, dynamic>>> obtenerOfertas() async {
     try {
       final hoy = DateTime.now().toIso8601String().split('T')[0];
@@ -49,7 +49,7 @@ class FacturacionApi {
     }
   }
 
-  // ─── INVENTARIO ────────────────────────────────────────────
+ 
   Future<List<Map<String, dynamic>>> obtenerInventario({String? busqueda}) async {
     try {
       var query = _db
@@ -68,9 +68,7 @@ class FacturacionApi {
     }
   }
 
-  // ─── OBTENER FACTURAS (HISTORIAL) ─────────────────────────
-  /// [pagina] empieza en 0. [porPagina] controla cuántas filas se traen.
-  /// Solo trae columnas necesarias para el listado (sin ítems de detalle).
+  
   Future<List<Map<String, dynamic>>> obtenerFacturas({
     int pagina = 0,
     int porPagina = 50,
@@ -91,7 +89,7 @@ class FacturacionApi {
     }
   }
 
-  // ─── OBTENER FACTURA POR ID ────────────────────────────────
+ 
   Future<Map<String, dynamic>?> obtenerFacturaPorId(int id) async {
     try {
       final factura = await _db
@@ -120,7 +118,7 @@ class FacturacionApi {
     }
   }
 
-  // ─── CREAR FACTURA (TRANSACCIÓN COMPLETA) ─────────────────
+ 
   Future<Map<String, dynamic>> crearFactura({
     int? idCliente,
     int? idVehiculo,
@@ -138,7 +136,7 @@ class FacturacionApi {
         return {'success': false, 'message': 'El descuento debe ser entre 0 y 100%'};
       }
 
-      // ── Calcular totales ──
+      
       double subtotal = 0;
       for (final item in items) {
         final cantidad = (item['cantidad'] as int? ?? 1);
@@ -151,7 +149,7 @@ class FacturacionApi {
       final iva = subtotalConDescuento * 0.13;
       final total = subtotalConDescuento + iva;
 
-      // ── Verificar stock antes de insertar ──
+      
       final List<Map<String, dynamic>> warnings = [];
       for (final item in items) {
         final tipo = (item['tipo'] as String? ?? '').toLowerCase();
@@ -177,7 +175,7 @@ class FacturacionApi {
         } catch (_) {}
       }
 
-      // ── Insertar factura ──
+      
       final facturaInsertada = await _db.from('facturacion').insert({
         'fecha': DateTime.now().toIso8601String(),
         'tipo_factura': tipoFactura,
@@ -192,7 +190,7 @@ class FacturacionApi {
 
       final int idFactura = facturaInsertada['id'] as int;
 
-      // ── Insertar detalles ──
+      
       for (final item in items) {
         final cantidad = item['cantidad'] as int? ?? 1;
         final precio = (item['precio_unitario'] as num?)?.toDouble() ?? 0.0;
@@ -212,7 +210,7 @@ class FacturacionApi {
           'sku': item['sku']?.toString(),
         });
 
-        // ── Descontar stock si es producto ──
+     
         if (esProducto) {
           final idProducto = int.tryParse(item['id_producto']?.toString() ?? '');
           if (idProducto != null) {
@@ -244,7 +242,7 @@ class FacturacionApi {
         }
       }
 
-      // Buscar datos completos del cliente para el PDF
+     
       Map<String, dynamic>? clienteData;
       if (idCliente != null) {
         try {
@@ -275,7 +273,7 @@ class FacturacionApi {
     }
   }
 
-  // ─── OBTENER ÍTEMS DE UNA FACTURA (para edición rápida) ───
+ 
   Future<List<Map<String, dynamic>>> obtenerItemsFactura(int idFactura) async {
     try {
       final data = await _db
@@ -289,7 +287,7 @@ class FacturacionApi {
     }
   }
 
-  // ─── ACTUALIZAR FACTURA (CORRECCIÓN INTERNA) ───────────────
+ 
   Future<Map<String, dynamic>> actualizarFactura({
     required int id,
     required String tipoFactura,
@@ -306,7 +304,6 @@ class FacturacionApi {
     }
   }
 
-  // ─── ACTUALIZAR FACTURA COMPLETA (ítems + totales + encabezado) ──
   Future<Map<String, dynamic>> actualizarFacturaCompleta({
     required int id,
     required String tipoFactura,
@@ -347,10 +344,8 @@ class FacturacionApi {
     }
   }
 
-  // ─── ANULAR FACTURA (SOFT DELETE) ─────────────────────────
   Future<bool> anularFactura(int id) async {
     try {
-      // Verificar si existe la columna anulada, si no usar otro campo
       await _db
           .from('facturacion')
           .update({'anulada': true})
@@ -361,9 +356,8 @@ class FacturacionApi {
     }
   }
 
-  // ─── REPORTES ─────────────────────────────────────────────
+  
 
-  /// Ventas totales por período
   Future<Map<String, dynamic>> obtenerResumenVentas({
     required DateTime desde,
     required DateTime hasta,
@@ -397,7 +391,7 @@ class FacturacionApi {
     }
   }
 
-  /// Productos más vendidos
+  
   Future<List<Map<String, dynamic>>> obtenerProductosMasVendidos({int limit = 10}) async {
     try {
       final data = await _db
@@ -406,7 +400,7 @@ class FacturacionApi {
           .order('cantidad', ascending: false)
           .limit(limit * 5); // Traemos más para agrupar
 
-      // Agrupar por nombre
+    
       final Map<String, Map<String, dynamic>> agrupado = {};
       for (final d in data) {
         final nombre = d['nombre_producto'] as String;

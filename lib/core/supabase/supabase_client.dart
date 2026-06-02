@@ -5,7 +5,7 @@ class SupabaseClientService {
 
   static SupabaseClient get client => _client;
 
-  // Método helper para hacer selects más fácil
+ 
   static Future<List<Map<String, dynamic>>> select(
     String table, {
     String? filtros,
@@ -13,7 +13,7 @@ class SupabaseClientService {
   }) async {
     var query = _client.from(table).select();
 
-    // Aquí puedes mejorar los filtros después
+    
     return await query;
   }
 

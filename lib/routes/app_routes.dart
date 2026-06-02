@@ -32,12 +32,11 @@ class AppRoutes {
   static const String reportes          = '/reportes';
   static const String historialFacturas = '/historialFacturas';
 
-  // Rutas que puede ver cualquier empleado logueado
+
 static const _rutasEmpleado = {
   vehiculos, perfil, home, login
 };
 
-// Rutas que puede ver secretaria (+ las de empleado)
 static const _rutasSecretaria = {
   vehiculos, perfil, home, login,
   clientes, facturacion, historialFacturas, caja, historialTurnos, reportes
@@ -46,7 +45,7 @@ static Route<dynamic> onGenerateRoute(RouteSettings settings) {
   final name = settings.name ?? login;
 
   if (SessionService.rolActual.isNotEmpty) {
-    // Mecánico solo ve vehículos y perfil
+
     if (SessionService.esMecanico) {
       const rutasMecanico = {vehiculos, perfil, home, login};
       if (!rutasMecanico.contains(name)) {
@@ -57,7 +56,7 @@ static Route<dynamic> onGenerateRoute(RouteSettings settings) {
       }
     }
 
-    // Bloquear facturación si caja está cerrada
+
     if (name == facturacion) {
       return MaterialPageRoute(
         builder: (context) => FutureBuilder<bool>(
@@ -69,7 +68,7 @@ static Route<dynamic> onGenerateRoute(RouteSettings settings) {
             if (snapshot.data == true) {
               return const FacturacionScreen();
             }
-            // Caja cerrada — redirige a caja con mensaje
+       
             WidgetsBinding.instance.addPostFrameCallback((_) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

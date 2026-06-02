@@ -277,7 +277,7 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Nombre y Teléfono
+          
             isWide
                 ? Row(
                     children: [
@@ -295,7 +295,7 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
                   ),
             const SizedBox(height: 14),
 
-            // Locación y Correo
+           
             isWide
                 ? Row(
                     children: [
@@ -312,7 +312,7 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
                     ],
                   ),
 
-            // NIT solo si es Nacional
+         
             if (_locacionSeleccionada == 'Nacional') ...[
               const SizedBox(height: 14),
               _buildTextField("NIT", _nitController),

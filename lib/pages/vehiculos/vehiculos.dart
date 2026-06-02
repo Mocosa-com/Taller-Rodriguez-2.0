@@ -242,7 +242,7 @@ class _VehiculosPageState extends State<VehiculosPage> {
     return Column(
       children: [
         _buildTableHeader(),
-        // ── Altura fija + scroll ──────────────────────────────────────
+      
         SizedBox(
           height: 400,
           child: Scrollbar(
@@ -291,7 +291,7 @@ class _VehiculosPageState extends State<VehiculosPage> {
             ),
           ),
         ),
-        // ─────────────────────────────────────────────────────────────
+   
       ],
     );
   }

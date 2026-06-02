@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class OfertaApi {
   static get _db => Supabase.instance.client;
 
-  /// Obtiene TODAS las ofertas (activas e inactivas) para el panel de gestión
+  
   Future<List<Map<String, dynamic>>> obtenerTodas() async {
     try {
       final data = await _db
@@ -16,7 +16,7 @@ class OfertaApi {
     }
   }
 
-  /// Obtiene solo las ofertas activas (para usar en facturación)
+ 
   Future<List<Map<String, dynamic>>> obtenerOfertas() async {
     try {
       final data = await _db
@@ -76,7 +76,7 @@ class OfertaApi {
     }
   }
 
-  /// Soft-delete: desactiva la oferta sin eliminarla de la base de datos
+ 
   Future<Map<String, dynamic>> desactivarOferta(int id) async {
     try {
       await _db.from('ofertas').update({
@@ -88,7 +88,7 @@ class OfertaApi {
     }
   }
 
-  /// Reactivar una oferta desactivada
+ 
   Future<Map<String, dynamic>> reactivarOferta(int id) async {
     try {
       await _db.from('ofertas').update({
@@ -100,7 +100,7 @@ class OfertaApi {
     }
   }
 
-  /// Eliminado físico — NO usar en producción, solo para admin con privilegios
+  
   @Deprecated('Usar desactivarOferta() para mantener integridad de datos')
   Future<Map<String, dynamic>> eliminarOferta(int id) async {
     try {

@@ -4,7 +4,7 @@ import 'package:taller_rodriguez/services/session_service.dart';
 class CajaService {
   static final _client = SupabaseClientService.client;
 
-  // Verifica si hay una caja abierta ahorita
+  
   static Future<Map<String, dynamic>?> getCajaAbierta() async {
     try {
       final data = await _client
@@ -19,7 +19,6 @@ class CajaService {
     }
   }
 
-  // Abre una nueva caja
   static Future<Map<String, dynamic>> abrirCaja(double baseInicial) async {
     try {
       final empleadoId = SessionService.currentUser?['id'];
@@ -27,7 +26,7 @@ class CajaService {
         return {'success': false, 'message': 'No hay sesión activa'};
       }
 
-      // Verificar que no haya caja abierta
+    
       final cajaActual = await getCajaAbierta();
       if (cajaActual != null) {
         return {'success': false, 'message': 'Ya hay una caja abierta'};
@@ -52,7 +51,7 @@ class CajaService {
   
   static Future<Map<String, dynamic>> cerrarCaja(int idCaja) async {
   try {
-    // Obtener datos de la caja para calcular ventas del turno
+    
     final cajaData = await _client
         .from('apertura_cierre')
         .select('fecha, hora_apertura, base_inicial')
@@ -63,7 +62,6 @@ class CajaService {
     final horaApertura = cajaData['hora_apertura']?.toString() ?? '00:00:00';
     final baseInicial = (cajaData['base_inicial'] as num?)?.toDouble() ?? 0;
 
-    // Calcular ventas desde apertura hasta ahora
     final inicioCaja = DateTime.tryParse('${fecha}T$horaApertura') 
                     ?? DateTime.now().subtract(const Duration(hours: 8));
 
@@ -102,7 +100,7 @@ class CajaService {
   }
 }
 
-  // Actualiza el efectivo actual
+
   static Future<Map<String, dynamic>> actualizarEfectivo(int idCaja, double efectivo) async {
     try {
       await _client.from('apertura_cierre')
@@ -114,7 +112,6 @@ class CajaService {
     }
   }
 
-  // Historial de turnos
   static Future<List<Map<String, dynamic>>> getHistorial() async {
     try {
       final data = await _client

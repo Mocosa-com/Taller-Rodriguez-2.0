@@ -441,7 +441,7 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
   }
 }
 
-// ─── Botón Volver ──────────────────────────────────────────────
+
 class _BotonVolver extends StatefulWidget {
   final VoidCallback onPressed;
   const _BotonVolver({required this.onPressed});

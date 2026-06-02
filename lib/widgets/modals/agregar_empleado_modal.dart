@@ -64,7 +64,7 @@ class _AgregarEmpleadoModalState extends State<AgregarEmpleadoModal> {
     super.dispose();
   }
 
-  // ── Validadores ──────────────────────────────────────────────────────────
+  
 
   String? _validarRequerido(String? v) =>
       (v == null || v.trim().isEmpty) ? 'Este campo es obligatorio' : null;
@@ -94,7 +94,7 @@ class _AgregarEmpleadoModalState extends State<AgregarEmpleadoModal> {
   }
 
   String? _validarPorcentaje(String? v) {
-    if (v == null || v.trim().isEmpty) return null; // opcional
+    if (v == null || v.trim().isEmpty) return null; 
     final n = double.tryParse(v.trim());
     if (n == null) return 'Ingresa un número válido';
     if (n < 0 || n > 100) return 'Debe estar entre 0 y 100';
@@ -108,7 +108,7 @@ class _AgregarEmpleadoModalState extends State<AgregarEmpleadoModal> {
     if (!RegExp(r'[0-9]').hasMatch(v)) return 'Debe tener al menos un número';
     return null;
    }
-  // ── Guardado ─────────────────────────────────────────────────────────────
+  
 
   Future<void> _guardarEmpleado() async {
     if (!_formKey.currentState!.validate()) return;
@@ -156,7 +156,7 @@ class _AgregarEmpleadoModalState extends State<AgregarEmpleadoModal> {
     }
   }
 
-  // ── BUILD ────────────────────────────────────────────────────────────────
+
 
   @override
   Widget build(BuildContext context) {
@@ -263,12 +263,11 @@ class _AgregarEmpleadoModalState extends State<AgregarEmpleadoModal> {
     );
   }
 
-  // ── Helpers de layout ────────────────────────────────────────────────────
+
 
   Widget _field(bool isWide, Widget child) =>
       SizedBox(width: isWide ? 270 : double.infinity, child: child);
 
-  // ── Campos ───────────────────────────────────────────────────────────────
 
   Widget _buildTextField(
     String label,

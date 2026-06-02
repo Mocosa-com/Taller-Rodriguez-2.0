@@ -102,7 +102,7 @@ Future<void> _reportarCliente(Cliente c) async {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Info del cliente
+           
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(

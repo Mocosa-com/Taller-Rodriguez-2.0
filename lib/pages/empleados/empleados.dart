@@ -102,7 +102,7 @@ Future<void> _reportarEmpleado(Empleado e) async {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Info del empleado
+          
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(

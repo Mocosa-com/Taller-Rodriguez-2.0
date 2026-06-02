@@ -6,7 +6,7 @@ import '../../widgets/common/dashboard_card.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  // Todos los módulos disponibles
+  // 
   static final List<MenuItemModel> _allItems = [
     MenuItemModel(label: 'Caja', imagePath: 'assets/sidebar_false/caja.png'),
     MenuItemModel(label: 'Clientes', imagePath: 'assets/sidebar_false/cliente.png'),
@@ -24,7 +24,7 @@ class HomeScreen extends StatelessWidget {
     if (SessionService.esAdmin || SessionService.esSecretaria) {
       return _allItems;
     } else {
-      // Mecánicos y empleados normales
+      
       return _allItems.where((item) {
         final label = item.label.toLowerCase();
         return label == 'vehiculos' || label == 'perfil';
@@ -61,7 +61,7 @@ class HomeScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Avatar del usuario
+                
                   GestureDetector(
                     onTap: () => Navigator.pushNamed(context, '/perfil'),
                     child: _buildUserAvatar(),
@@ -70,7 +70,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
 
-            // Contenido principal
+           
             Expanded(
               child: items.isEmpty
                   ? const Center(child: Text('No tienes permisos para ver módulos'))

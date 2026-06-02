@@ -8,7 +8,7 @@ class SupabaseService {
   
   static final _client = Supabase.instance.client;
 
-  // ====================== LOGIN ======================
+ 
   static Future<Map<String, dynamic>> login(
     String usuario,
     String contrasena,
@@ -25,7 +25,7 @@ class SupabaseService {
       if (response.isNotEmpty) {
         final user = response.first;
 
-        SessionService.iniciar(user);   // Guardar sesión
+        SessionService.iniciar(user);
 
         return {
           'success': true,
@@ -47,7 +47,7 @@ class SupabaseService {
     }
   }
 
-  // ====================== REGISTRO ADMIN ======================
+
   static Future<Map<String, dynamic>> registrarAdmin(
     Map<String, dynamic> datos,
   ) async {

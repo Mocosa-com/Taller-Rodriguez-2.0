@@ -13,7 +13,7 @@ class ClienteService {
     final lista = (data as List)
         .where((e) {
           final activo = e['activo'];
-          // Acepta tanto boolean true como string "true"
+          
           return activo == true || activo.toString() == 'true';
         })
         .map((e) => Cliente.fromJson(e))
