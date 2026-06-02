@@ -18,6 +18,10 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
   final FacturaPdfService _pdfService = FacturaPdfService();
 
   bool _cargando = true;
+  bool _cargandoMas = false;
+  bool _hayMas = true;
+  int _pagina = 0;
+  static const int _porPagina = 50;
   String _busqueda = '';
   List<Map<String, dynamic>> _facturas = [];
   List<Map<String, dynamic>> _facturasFiltradas = [];
@@ -37,17 +41,36 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
   }
 
   Future<void> _cargarFacturas() async {
-    setState(() => _cargando = true);
+    setState(() { _cargando = true; _pagina = 0; _hayMas = true; });
     try {
-      final data = await _api.obtenerFacturas();
+      final data = await _api.obtenerFacturas(pagina: 0, porPagina: _porPagina);
       setState(() {
         _facturas = data;
-        _filtrar('');
+        _hayMas = data.length == _porPagina;
+        _filtrar(_busquedaCtrl.text);
         _cargando = false;
       });
     } catch (e) {
       setState(() => _cargando = false);
       _mostrarMensaje('Error al cargar facturas: $e', isError: true);
+    }
+  }
+
+  Future<void> _cargarMas() async {
+    if (_cargandoMas || !_hayMas) return;
+    setState(() => _cargandoMas = true);
+    try {
+      final siguientePag = _pagina + 1;
+      final data = await _api.obtenerFacturas(pagina: siguientePag, porPagina: _porPagina);
+      setState(() {
+        _pagina = siguientePag;
+        _facturas.addAll(data);
+        _hayMas = data.length == _porPagina;
+        _filtrar(_busquedaCtrl.text);
+        _cargandoMas = false;
+      });
+    } catch (e) {
+      setState(() => _cargandoMas = false);
     }
   }
 
@@ -203,9 +226,25 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '${_facturasFiltradas.length} factura(s)',
-                        style: const TextStyle(color: Colors.black54, fontSize: 13),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_facturasFiltradas.length} factura(s)',
+                            style: const TextStyle(color: Colors.black54, fontSize: 13),
+                          ),
+                          if (_hayMas && _busqueda.isEmpty)
+                            TextButton.icon(
+                              onPressed: _cargandoMas ? null : _cargarMas,
+                              icon: _cargandoMas
+                                  ? const SizedBox(width: 14, height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFC0392B)))
+                                  : const Icon(Icons.expand_more, size: 16, color: Color(0xFFC0392B)),
+                              label: Text(_cargandoMas ? 'Cargando...' : 'Cargar más',
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFFC0392B))),
+                              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2)),
+                            ),
+                        ],
                       ),
                       _BotonVolver(onPressed: () => Navigator.pushNamed(context, '/caja')),
                     ],

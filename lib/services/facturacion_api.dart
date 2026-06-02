@@ -69,18 +69,22 @@ class FacturacionApi {
   }
 
   // ─── OBTENER FACTURAS (HISTORIAL) ─────────────────────────
-  Future<List<Map<String, dynamic>>> obtenerFacturas() async {
+  /// [pagina] empieza en 0. [porPagina] controla cuántas filas se traen.
+  /// Solo trae columnas necesarias para el listado (sin ítems de detalle).
+  Future<List<Map<String, dynamic>>> obtenerFacturas({
+    int pagina = 0,
+    int porPagina = 50,
+  }) async {
     try {
       final data = await _db
           .from('facturacion')
-          .select('''
-            id, fecha, tipo_factura, subtotal, iva, descuento,
-            descuento_porcentaje, total,
-            clientes:id_cliente(id, nombre, nit),
-            vehiculos:id_vehiculo(id, marca, modelo, placa)
-          ''')
+          .select(
+            'id, fecha, tipo_factura, total, '
+            'clientes:id_cliente(id, nombre), '
+            'vehiculos:id_vehiculo(id, placa)',
+          )
           .order('id', ascending: false)
-          .limit(200);
+          .range(pagina * porPagina, (pagina + 1) * porPagina - 1);
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
       return [];
@@ -271,6 +275,20 @@ class FacturacionApi {
     }
   }
 
+  // ─── OBTENER ÍTEMS DE UNA FACTURA (para edición rápida) ───
+  Future<List<Map<String, dynamic>>> obtenerItemsFactura(int idFactura) async {
+    try {
+      final data = await _db
+          .from('detalles_factura')
+          .select()
+          .eq('id_factura', idFactura)
+          .order('id');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      return [];
+    }
+  }
+
   // ─── ACTUALIZAR FACTURA (CORRECCIÓN INTERNA) ───────────────
   Future<Map<String, dynamic>> actualizarFactura({
     required int id,
@@ -285,6 +303,47 @@ class FacturacionApi {
       return {'success': true};
     } catch (e) {
       return {'success': false, 'message': 'Error al actualizar: $e'};
+    }
+  }
+
+  // ─── ACTUALIZAR FACTURA COMPLETA (ítems + totales + encabezado) ──
+  Future<Map<String, dynamic>> actualizarFacturaCompleta({
+    required int id,
+    required String tipoFactura,
+    required int? idCliente,
+    required List<Map<String, dynamic>> items,
+    required double subtotal,
+    required double descuento,
+    required double descuentoPorcentaje,
+    required double iva,
+    required double total,
+  }) async {
+    try {
+      // 1. Actualizar encabezado de factura
+      await _db.from('facturacion').update({
+        'tipo_factura': tipoFactura,
+        'id_cliente': idCliente,
+        'subtotal': subtotal,
+        'descuento': descuento,
+        'descuento_porcentaje': descuentoPorcentaje,
+        'iva': iva,
+        'total': total,
+      }).eq('id', id);
+
+      // 2. Actualizar cada detalle individualmente
+      for (final item in items) {
+        final idDetalle = item['id'];
+        if (idDetalle == null) continue;
+        await _db.from('detalles_factura').update({
+          'cantidad': item['cantidad'],
+          'precio_unitario': item['precio_unitario'],
+          'subtotal': item['subtotal'],
+        }).eq('id', idDetalle);
+      }
+
+      return {'success': true};
+    } catch (e) {
+      return {'success': false, 'message': 'Error al actualizar factura: $e'};
     }
   }
 
