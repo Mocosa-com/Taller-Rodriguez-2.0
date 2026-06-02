@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:html' as html;
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:taller_rodriguez/widgets/navigation/sidebar.dart';
 import 'package:taller_rodriguez/widgets/inputs/busqueda.dart';
@@ -64,57 +66,95 @@ class InventarioPageState extends State<InventarioPage> {
     super.initState();
     _cargarDatosIniciales();
   }
+Future<void> _cargarDatosIniciales() async {
+  setState(() => _cargando = true);
+  
+  final resultados = await Future.wait([
+    _proveedorApi.obtenerProveedores(),
+    _api.obtenerInventario(),
+  ]);
 
+  if (!mounted) return;
+
+  setState(() {
+    _proveedores = resultados[0];
+    _productos = resultados[1];
+    _cargando = false;
+  });
+}
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _cargarDatosIniciales() async {
-    setState(() => _cargando = true);
-    final resultados = await Future.wait([
-      _proveedorApi.obtenerProveedores(),
-      _api.obtenerInventario(),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _proveedores = resultados[0];
-      _productos = resultados[1];
-      _cargando = false;
-    });
-  }
+ Future<void> _cargarProductos({String? busqueda}) async {
+  setState(() => _cargando = true);
 
-  Future<void> _cargarProductos({String? busqueda}) async {
-    setState(() => _cargando = true);
-    final textoBusqueda = busqueda ?? _searchController.text.trim();
-    _hayFiltrosActivos = textoBusqueda.isNotEmpty ||
-        _clasificacionSeleccionada != null ||
-        _filtroProveedor != null ||
-        _ordenStock != null;
+  final textoBusqueda = busqueda ?? _searchController.text.trim();
 
-    String? idProveedor;
-    if (_filtroProveedor != null && _filtroProveedor!.isNotEmpty) {
-      final prov = _proveedores.firstWhere(
-        (p) => p['nombre']?.toString() == _filtroProveedor,
-        orElse: () => {},
-      );
-      idProveedor = prov['id']?.toString();
-    }
+  _hayFiltrosActivos = textoBusqueda.isNotEmpty ||
+      _clasificacionSeleccionada != null ||
+      _filtroProveedor != null ||
+      _ordenStock != null;
 
-    final productos = await _api.obtenerInventario(
-      busqueda: textoBusqueda.isEmpty ? null : textoBusqueda,
-      idProveedor: idProveedor,
-      clasificacion: _clasificacionSeleccionada,
-      ordenStock: _ordenStock,
+  String? idProveedor;
+  if (_filtroProveedor != null && _filtroProveedor!.isNotEmpty) {
+    final prov = _proveedores.firstWhere(
+      (p) => p['nombre']?.toString() == _filtroProveedor,
+      orElse: () => {},
     );
-
-    if (!mounted) return;
-    setState(() {
-      _productos = productos;
-      _cargando = false;
-    });
+    idProveedor = prov['id']?.toString();
   }
+
+  final productos = await _api.obtenerInventario(
+    busqueda: textoBusqueda.isEmpty ? null : textoBusqueda,
+    idProveedor: idProveedor,
+    clasificacion: _clasificacionSeleccionada,
+    ordenStock: _ordenStock,
+  );
+
+  if (!mounted) return;
+
+  setState(() {
+    _productos = productos;
+    _cargando = false;
+  });
+}
+
+Future<void> _cargarProductos({String? busqueda}) async {
+  setState(() => _cargando = true);
+
+  final textoBusqueda = busqueda ?? _searchController.text.trim();
+
+  _hayFiltrosActivos = textoBusqueda.isNotEmpty ||
+      _clasificacionSeleccionada != null ||
+      _filtroProveedor != null ||
+      _ordenStock != null;
+
+  String? idProveedor;
+  if (_filtroProveedor != null && _filtroProveedor!.isNotEmpty) {
+    final prov = _proveedores.firstWhere(
+      (p) => p['nombre']?.toString() == _filtroProveedor,
+      orElse: () => {},
+    );
+    idProveedor = prov['id']?.toString();
+  }
+
+  final productos = await _api.obtenerInventario(
+    busqueda: textoBusqueda.isEmpty ? null : textoBusqueda,
+    idProveedor: idProveedor,
+    clasificacion: _clasificacionSeleccionada,
+    ordenStock: _ordenStock,
+  );
+
+  if (!mounted) return;
+
+  setState(() {
+    _productos = productos;
+    _cargando = false;
+  });
+}
 
   void _limpiarFiltros() {
     setState(() {
@@ -209,42 +249,52 @@ class InventarioPageState extends State<InventarioPage> {
     );
   }
 
-  // ── Exportar CSV ──────────────────────────────────────────
-  Future<void> _exportarCSV() async {
-    try {
-      final sb = StringBuffer();
-      sb.writeln('SKU,Nombre,Tipo,Clasificacion,Stock,Stock Minimo,Precio Compra,Precio Venta,Descripcion,Proveedor');
-      for (final p in _productos) {
-        String esc(dynamic v) {
-          final s = v?.toString() ?? '';
-          return s.contains(',') || s.contains('"') || s.contains('\n')
-              ? '"${s.replaceAll('"', '""')}"'
-              : s;
-        }
-        sb.writeln([
-          esc(p['sku']),
-          esc(p['nombre']),
-          esc(p['tipo']),
-          esc(p['clasificacion']),
-          esc(p['stock']),
-          esc(p['stock_minimo']),
-          esc(p['precio_compra']),
-          esc(p['precio_venta']),
-          esc(p['descripcion']),
-          esc(_obtenerNombreProveedor(p['id_proveedor']?.toString())),
-        ].join(','));
+ Future<void> _exportarCSV() async {
+  try {
+    final sb = StringBuffer();
+    sb.writeln('SKU,Nombre,Tipo,Clasificacion,Stock,Stock Minimo,Precio Compra,Precio Venta,Descripcion,Proveedor');
+
+    for (final p in _productos) {
+      String esc(dynamic v) {
+        final s = v?.toString() ?? '';
+        return s.contains(',') || s.contains('"') || s.contains('\n') 
+            ? '"${s.replaceAll('"', '""')}"' 
+            : s;
       }
 
-      final dir = await getApplicationDocumentsDirectory();
-      final ts = DateTime.now().millisecondsSinceEpoch;
-      final file = File('${dir.path}/inventario_$ts.csv');
-      await file.writeAsString(sb.toString(), encoding: utf8);
-      _snack('CSV exportado correctamente ✓');
-      await OpenFilex.open(file.path);
-    } catch (e) {
-      _snack('Error al exportar: $e', isError: true);
+      final proveedor = _obtenerNombreProveedor(p['id_proveedor']?.toString());
+
+      sb.writeln([
+        esc(p['sku']),
+        esc(p['nombre']),
+        esc(p['tipo']),
+        esc(p['clasificacion']),
+        esc(p['stock']),
+        esc(p['stock_minimo']),
+        esc(p['precio_compra']),
+        esc(p['precio_venta']),
+        esc(p['descripcion']),
+        esc(proveedor),
+      ].join(','));
     }
+
+    final bytes = utf8.encode(sb.toString());
+    final blob = html.Blob([bytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", "inventario_${DateTime.now().toIso8601String().split('T')[0]}.csv")
+      ..style.display = 'none';
+
+    html.document.body!.append(anchor);
+    anchor.click();
+    anchor.remove();
+    html.Url.revokeObjectUrl(url);
+
+    _snack('✅ CSV descargado correctamente');
+  } catch (e) {
+    _snack('Error al exportar: $e', isError: true);
   }
+}
 
   // ── Importar CSV ──────────────────────────────────────────
   Future<void> _importarCSV() async {
@@ -385,7 +435,7 @@ class InventarioPageState extends State<InventarioPage> {
     return proveedor['nombre']?.toString() ?? '-';
   }
 
-  // ── BUILD ─────────────────────────────────────────────────
+  
   @override
   Widget build(BuildContext context) {
     final bool isWide = MediaQuery.of(context).size.width > 1000;
@@ -408,7 +458,7 @@ class InventarioPageState extends State<InventarioPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Título + Export/Import ──
+                  
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25),
                     child: Row(
@@ -442,9 +492,13 @@ class InventarioPageState extends State<InventarioPage> {
                         OutlinedButton.icon(
                           onPressed: _productos.isEmpty ? null : _exportarCSV,
                           icon: const Icon(Icons.download, size: 16, color: Color(0xFFC0392B)),
-                          label: Text(isWide ? 'Exportar CSV' : 'Exportar',
-                              style: const TextStyle(color: Color(0xFFC0392B), fontSize: 13)),
-                          style: OutlinedButton.styleFrom(
+                          label: Text(
+                            _clasificacionSeleccionada != null 
+                              ? 'Exportar ${_clasificacionSeleccionada!}' 
+                              : (isWide ? 'Exportar CSV' : 'Exportar'),
+                            style: const TextStyle(color: Color(0xFFC0392B), fontSize: 13)
+                          ),
+                            style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0xFFC0392B)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -456,7 +510,7 @@ class InventarioPageState extends State<InventarioPage> {
 
                   if (isWide) const SizedBox(height: 16),
 
-                  // ── Búsqueda + proveedor + orden ──
+                  
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25),
                     child: isWide
@@ -489,16 +543,21 @@ class InventarioPageState extends State<InventarioPage> {
                                 },
                               ),
                               const SizedBox(width: 12),
-                              DropdownButton<String?>(
-                                value: _ordenStock,
-                                hint: const Text('Ordenar stock', style: TextStyle(fontSize: 13)),
-                                underline: const SizedBox(),
-                                borderRadius: BorderRadius.circular(10),
-                                items: const [
-                                  DropdownMenuItem(value: null, child: Text('Sin orden')),
-                                  DropdownMenuItem(value: 'asc', child: Text('Stock ↑ menor primero')),
-                                  DropdownMenuItem(value: 'desc', child: Text('Stock ↓ mayor primero')),
-                                ],
+                              DDropdownButton<String?>(
+  value: _ordenStock,
+  hint: const Text('Sin orden', style: TextStyle(fontSize: 13)),
+  underline: const SizedBox(),
+  borderRadius: BorderRadius.circular(10),
+  items: const [
+    DropdownMenuItem(value: null, child: Text('Sin orden')),
+    DropdownMenuItem(value: 'asc', child: Text('Stock ↑ menor primero')),
+    DropdownMenuItem(value: 'desc', child: Text('Stock ↓ mayor primero')),
+  ],
+  onChanged: (val) {
+    setState(() => _ordenStock = val);
+    _cargarProductos();
+  },
+),
                                 onChanged: (val) {
                                   setState(() => _ordenStock = val);
                                   _cargarProductos();
