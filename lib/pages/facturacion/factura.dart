@@ -32,6 +32,7 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
 
   final TextEditingController _busquedaController = TextEditingController();
   final TextEditingController _descuentoController = TextEditingController();
+  final TextEditingController _pagoController = TextEditingController();
   
   double _subtotal = 0;
   double _iva = 0;
@@ -832,7 +833,6 @@ SizedBox(
     final int stockDisponible = stock ?? 0;
     final bool puedeAumentar = !isServicio && cantidad < stockDisponible;
     final bool puedeReducir = cantidad > 1;
-    final TextEditingController _pagoController = TextEditingController();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
