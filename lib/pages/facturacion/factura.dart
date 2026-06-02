@@ -318,7 +318,16 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
       try {
         final _raw = resultado['factura'] ?? resultado;
         final facturaData = _deepConvert(_raw);
-        await _pdfService.generarFacturaPdf(facturaData);
+        final montoPagoTexto = _pagoController.text.trim();
+        // Si no ingresó monto, usar el total exacto (cambio = $0.00)
+        final montoPago = montoPagoTexto.isNotEmpty
+            ? (double.tryParse(montoPagoTexto) ?? _total)
+            : _total;
+        // Usar el total local como respaldo por si el API no lo devuelve correctamente
+        if (!facturaData.containsKey('total') || (facturaData['total'] as num? ?? 0) == 0) {
+          facturaData['total'] = _total;
+        }
+        await _pdfService.generarFacturaPdf(facturaData, montoPago: montoPago);
         _mostrarMensaje('Factura creada y descargada correctamente ✓');
       } catch (e) {
         _mostrarMensaje('Factura creada, pero no se pudo generar el PDF: $e', isError: true);
@@ -359,6 +368,7 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
     });
     _descuentoController.clear();
     _busquedaController.clear();
+    _pagoController.clear();
   }
 
   /// Convierte recursivamente LinkedMap/Map<dynamic,dynamic> a Map<String,dynamic>

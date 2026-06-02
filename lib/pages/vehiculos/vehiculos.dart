@@ -153,7 +153,7 @@ class _VehiculosPageState extends State<VehiculosPage> {
                             FilterDropdown(
                               label: 'Filtrar por:',
                               value: _filtroEstado,
-                              options: const ['En revisión', 'Reparando', 'Listo', 'Entregado'],
+                              options: const ['En revisión', 'Reparando', 'En espera', 'Entregado'],
                               onChanged: (val) => setState(() => _filtroEstado = val),
                             ),
                           ])
@@ -163,7 +163,7 @@ class _VehiculosPageState extends State<VehiculosPage> {
                             FilterDropdown(
                               label: 'Filtrar por:',
                               value: _filtroEstado,
-                              options: const ['En revisión', 'Reparando', 'Listo', 'Entregado'],
+                              options: const ['En revisión', 'Reparando', 'En espera', 'Entregado'],
                               onChanged: (val) => setState(() => _filtroEstado = val),
                             ),
                           ]),
@@ -401,7 +401,7 @@ class _EstadoChip extends StatelessWidget {
     switch (estado) {
       case 'En revisión': bg = const Color(0xFFFFF8E1); text = const Color(0xFFF9A825); break;
       case 'Reparando': bg = const Color(0xFFE3F2FD); text = const Color(0xFF1565C0); break;
-      case 'Listo': bg = const Color(0xFFDFF5E1); text = const Color(0xFF2E7D32); break;
+      case 'En espera': bg = const Color(0xFFF3E5F5); text = const Color(0xFF6A1B9A); break;
       case 'Entregado': default: bg = const Color(0xFFEEEEEE); text = const Color(0xFF616161);
     }
     return Container(

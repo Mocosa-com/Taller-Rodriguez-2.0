@@ -6,6 +6,7 @@ import '../../services/cliente_service.dart';
 import '../../services/Empleado_service.dart';
 import '../../models/cliente.dart';
 import '../../models/empleado_back.dart';
+import 'agregar_cliente_modal.dart';
 
 class AgregarVehiculoModal extends StatefulWidget {
   final VoidCallback onVehiculoAgregado;
@@ -318,6 +319,33 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
         )).toList(),
         onChanged: (val) => setState(() => _clienteId = val),
       ),
+      const SizedBox(height: 8),
+      // Botón rápido para agregar cliente sin salir del módulo
+      TextButton.icon(
+        onPressed: () async {
+          await showDialog(
+            context: context,
+            builder: (_) => const AgregarClienteModal(),
+          );
+          // Recargar lista de clientes después de agregar
+          final clientes = await ClienteService.getAll();
+          if (mounted) {
+            setState(() => _clientes = clientes);
+          }
+        },
+        icon: const Icon(Icons.person_add, size: 18, color: Color(0xFFC0392B)),
+        label: const Text(
+          "Agregar cliente nuevo",
+          style: TextStyle(color: Color(0xFFC0392B), fontWeight: FontWeight.w600),
+        ),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: const BorderSide(color: Color(0xFFC0392B), width: 1),
+          ),
+        ),
+      ),
     ]);
   }
 
@@ -354,7 +382,7 @@ class _AgregarVehiculoModalState extends State<AgregarVehiculoModal> {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
-        items: const ['En revisión', 'Reparando', 'Listo']
+        items: const ['En revisión', 'Reparando', 'En espera']
             .map((e) => DropdownMenuItem(value: e, child: Text(e)))
             .toList(),
         onChanged: (val) => setState(() => _estado = val),

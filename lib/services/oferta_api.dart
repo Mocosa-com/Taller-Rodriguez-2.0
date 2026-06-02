@@ -45,7 +45,6 @@ class OfertaApi {
         'porcentaje_descuento': porcentajeDescuento,
         'fecha_inicio': fechaInicio.toIso8601String().split('T')[0],
         'fecha_fin': fechaFin.toIso8601String().split('T')[0],
-        'estado_oferta': 'Activa',
         'activo': true,
       });
       return {'success': true};
@@ -82,7 +81,6 @@ class OfertaApi {
     try {
       await _db.from('ofertas').update({
         'activo': false,
-        'estado_oferta': 'Inactiva',
       }).eq('id', id);
       return {'success': true};
     } catch (e) {
@@ -95,7 +93,6 @@ class OfertaApi {
     try {
       await _db.from('ofertas').update({
         'activo': true,
-        'estado_oferta': 'Activa',
       }).eq('id', id);
       return {'success': true};
     } catch (e) {

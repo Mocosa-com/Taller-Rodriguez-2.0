@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:taller_rodriguez/services/facturacion_api.dart';
 import 'package:taller_rodriguez/services/factura_pdf_service.dart';
 import 'package:taller_rodriguez/widgets/navigation/sidebar.dart';
+import 'package:taller_rodriguez/widgets/modals/editar_factura_modal.dart';
 
 class HistorialFacturasPage extends StatefulWidget {
   const HistorialFacturasPage({super.key});
@@ -65,6 +66,16 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
         }).toList();
       }
     });
+  }
+
+  void _editarFactura(Map<String, dynamic> f) {
+    showDialog(
+      context: context,
+      builder: (_) => EditarFacturaModal(
+        factura: f,
+        onFacturaEditada: _cargarFacturas,
+      ),
+    );
   }
 
   Future<void> _verYDescargarPdf(Map<String, dynamic> facturaResumen) async {
@@ -256,9 +267,13 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
                       SizedBox(width: 120, child: Text(total, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
                       SizedBox(width: 120, child: Text(fecha, style: const TextStyle(fontSize: 13))),
                       Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: _botonDescargar(f),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            _botonEditar(f),
+                            const SizedBox(width: 8),
+                            _botonDescargar(f),
+                          ],
                         ),
                       ),
                     ],
@@ -296,7 +311,11 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
                 Text(total, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFC0392B))),
                 Text(fecha, style: const TextStyle(fontSize: 12, color: Colors.black45)),
               ]),
-              _botonDescargar(f),
+              Row(children: [
+                _botonEditar(f),
+                const SizedBox(width: 6),
+                _botonDescargar(f),
+              ]),
             ],
           ),
         ],
@@ -320,14 +339,14 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
                 SizedBox(width: 140, child: Text('TIPO', style: style)),
                 SizedBox(width: 120, child: Text('TOTAL', style: style)),
                 SizedBox(width: 120, child: Text('FECHA', style: style)),
-                Expanded(child: Text('PDF', textAlign: TextAlign.right, style: style)),
+                Expanded(child: Text('ACCIONES', textAlign: TextAlign.right, style: style)),
               ],
             )
           : const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('FACTURAS', style: style),
-                Text('PDF', style: style),
+                Text('ACCIONES', style: style),
               ],
             ),
     );
@@ -351,6 +370,20 @@ class _HistorialFacturasPageState extends State<HistorialFacturasPage> {
         ),
         overflow: TextOverflow.ellipsis,
       ),
+    );
+  }
+
+  Widget _botonEditar(Map<String, dynamic> f) {
+    return OutlinedButton.icon(
+      onPressed: () => _editarFactura(f),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFFC0392B),
+        side: const BorderSide(color: Color(0xFFC0392B)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: const Icon(Icons.edit, size: 14),
+      label: const Text('Editar', style: TextStyle(fontSize: 12)),
     );
   }
 

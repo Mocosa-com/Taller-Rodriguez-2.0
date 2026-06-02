@@ -203,31 +203,28 @@ Future<void> _cargarReportesGuardados() async {
 
   Future<void> _cargarStockBajo() async {
     try {
+      // Traer todos los productos activos que no sean servicios y filtrar en Dart
+      // (Supabase no soporta comparación columna vs columna directamente con .filter)
       final data = await _db
           .from('inventario')
-          .select('nombre, stock, stock_minimo')
+          .select('nombre, stock, stock_minimo, tipo')
           .eq('activo', true)
-          .filter('stock', 'lte', 'stock_minimo')
+          .neq('tipo', 'Servicio')
           .order('stock')
-          .limit(5);
-      _stockBajo = List<Map<String, dynamic>>.from(data);
-    } catch (_) {
-      // Fallback: traer todos y filtrar manualmente
-      try {
-        final data = await _db
-            .from('inventario')
-            .select('nombre, stock, stock_minimo')
-            .eq('activo', true)
-            .order('stock')
-            .limit(50);
-        _stockBajo = data
-            .where((d) =>
-                (d['stock'] as int? ?? 0) <= (d['stock_minimo'] as int? ?? 0))
-            .take(5)
-            .toList()
-            .cast<Map<String, dynamic>>();
-      } catch (_) {}
-    }
+          .limit(200);
+
+      _stockBajo = (data as List)
+          .map((d) => Map<String, dynamic>.from(d as Map))
+          .where((d) =>
+              (d['stock'] as int? ?? 0) <= (d['stock_minimo'] as int? ?? 0))
+          .toList()
+        // Ordenar: sin stock primero, luego por diferencia stock - minimo ascendente
+        ..sort((a, b) {
+          final diffA = (a['stock'] as int? ?? 0) - (a['stock_minimo'] as int? ?? 0);
+          final diffB = (b['stock'] as int? ?? 0) - (b['stock_minimo'] as int? ?? 0);
+          return diffA.compareTo(diffB);
+        });
+    } catch (_) {}
   }
 
   Future<void> _cargarMasVendidos() async {

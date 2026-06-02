@@ -271,6 +271,23 @@ class FacturacionApi {
     }
   }
 
+  // ─── ACTUALIZAR FACTURA (CORRECCIÓN INTERNA) ───────────────
+  Future<Map<String, dynamic>> actualizarFactura({
+    required int id,
+    required String tipoFactura,
+    required int? idCliente,
+  }) async {
+    try {
+      await _db.from('facturacion').update({
+        'tipo_factura': tipoFactura,
+        'id_cliente': idCliente,
+      }).eq('id', id);
+      return {'success': true};
+    } catch (e) {
+      return {'success': false, 'message': 'Error al actualizar: $e'};
+    }
+  }
+
   // ─── ANULAR FACTURA (SOFT DELETE) ─────────────────────────
   Future<bool> anularFactura(int id) async {
     try {

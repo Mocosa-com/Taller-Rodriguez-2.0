@@ -9,7 +9,7 @@ import 'pdf_download_stub.dart'
     if (dart.library.io) 'pdf_download_native.dart';
 
 class FacturaPdfService {
-  Future<void> generarFacturaPdf(Map<String, dynamic> facturaData) async {
+  Future<void> generarFacturaPdf(Map<String, dynamic> facturaData, {double montoPago = 0}) async {
     final pdf = pw.Document();
 
     final nombreCliente       = facturaData['cliente']?['nombre']?.toString() ?? 'N/A';
@@ -51,7 +51,7 @@ class FacturaPdfService {
               pw.SizedBox(height: 20),
               _buildItemsTable(items),
               pw.SizedBox(height: 20),
-              _buildTotales(subtotal, descuentoPorcentaje, descuento, iva, total),
+              _buildTotales(subtotal, descuentoPorcentaje, descuento, iva, total, montoPago),
             ],
           );
         },
@@ -263,7 +263,9 @@ class FacturaPdfService {
     double descuento,
     double iva,
     double total,
+    double montoPago,
   ) {
+    final cambio = montoPago - total;
     return pw.Container(
       alignment: pw.Alignment.centerRight,
       child: pw.SizedBox(
@@ -281,7 +283,7 @@ class FacturaPdfService {
             else if (descuento > 0)
               _fila('Descuento:', '-\$${descuento.toStringAsFixed(2)}',
                   color: PdfColors.green700),
-            _fila('IVA (15%):', '\$${iva.toStringAsFixed(2)}'),
+            _fila('IVA (13%):', '\$${iva.toStringAsFixed(2)}'),
             pw.Divider(color: PdfColors.red, thickness: 1),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -297,6 +299,16 @@ class FacturaPdfService {
                   ),
                 ),
               ],
+            ),
+            pw.SizedBox(height: 6),
+            pw.Divider(color: PdfColors.grey400, thickness: 0.5),
+            _fila('Monto recibido:', '\$${montoPago.toStringAsFixed(2)}'),
+            _fila(
+              'Cambio:',
+              cambio >= 0
+                  ? '\$${cambio.toStringAsFixed(2)}'
+                  : '-\$${cambio.abs().toStringAsFixed(2)}',
+              color: cambio >= 0 ? PdfColors.green700 : PdfColors.red,
             ),
           ],
         ),
