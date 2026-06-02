@@ -100,54 +100,60 @@ Future<void> _cargarReportesGuardados() async {
     }
   }
 
-  Future<void> _cargarKpis() async {
-    final hoy = DateTime.now();
-    final inicioDia = DateTime(hoy.year, hoy.month, hoy.day);
+ Future<void> _cargarKpis() async {
+  final hoy = DateTime.now();
+  final inicioDia = DateTime(hoy.year, hoy.month, hoy.day);
 
-    // Ventas del día
-    try {
-      final factDia = await _db
-          .from('facturacion')
-          .select('total')
-          .gte('fecha', inicioDia.toIso8601String());
-      double suma = 0;
-      for (final f in factDia) {
-        suma += (f['total'] as num?)?.toDouble() ?? 0;
-      }
-      _ventasDia = suma;
-      _facturasDia = factDia.length;
-    } catch (_) {}
-
-    // Inventario total
-    try {
-      final inv = await _db.from('inventario').select('id').eq('activo', true);
-      _totalProductos = inv.length;
-    } catch (_) {}
-
-    // Vehículos activos en taller
-    try {
-      final vehs = await _db.from('vehiculos_taller').select('id').eq('activo', true);
-      _vehiculosActivos = vehs.length;
-    } catch (_) {
-      // Si no existe la tabla, usar 0
-      _vehiculosActivos = 0;
+  // Ventas del día
+  try {
+    final factDia = await _db
+        .from('facturacion')
+        .select('total')
+        .gte('fecha', inicioDia.toIso8601String());
+    double suma = 0;
+    for (final f in factDia) {
+      suma += (f['total'] as num?)?.toDouble() ?? 0;
     }
+    _ventasDia = suma;
+    _facturasDia = factDia.length;
+  } catch (_) {}
 
-    // Saldo caja (último turno abierto)
-    try {
-      final cajas = await _db
-          .from('caja')
-          .select('monto_base, total_ingresos, total_egresos')
-          .eq('estado', 'abierta')
-          .limit(1);
-      if (cajas.isNotEmpty) {
-        final c = cajas.first;
-        _saldoCaja = ((c['monto_base'] as num?)?.toDouble() ?? 0) +
-            ((c['total_ingresos'] as num?)?.toDouble() ?? 0) -
-            ((c['total_egresos'] as num?)?.toDouble() ?? 0);
-      }
-    } catch (_) {}
+  // Inventario total
+  try {
+    final inv = await _db.from('inventario').select('id').eq('activo', true);
+    _totalProductos = inv.length;
+  } catch (_) {}
+
+  // Vehículos activos en taller (no entregados)  ← FIX
+  try {
+    final vehs = await _db
+        .from('vehiculos')
+        .select('id')
+        .neq('estado', 'Entregado')
+        .eq('activo', true);
+    _vehiculosActivos = vehs.length;
+  } catch (_) {
+    _vehiculosActivos = 0;
   }
+
+  // Saldo caja (turno abierto)  ← FIX: tabla correcta = apertura_cierre
+  try {
+    final cajas = await _db
+        .from('apertura_cierre')
+        .select('base_inicial, efectivo_actual')
+        .eq('estado', 'Abierta')
+        .eq('activo', true)
+        .limit(1);
+    if (cajas.isNotEmpty) {
+      final c = cajas.first;
+      _saldoCaja = (c['efectivo_actual'] as num?)?.toDouble()
+                ?? (c['base_inicial'] as num?)?.toDouble()
+                ?? 0;
+    } else {
+      _saldoCaja = 0;
+    }
+  } catch (_) {}
+}
 
   Future<void> _cargarVentasSemana() async {
     final rango = _rango;

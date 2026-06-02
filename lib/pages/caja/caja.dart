@@ -61,33 +61,126 @@ class _CajaPageState extends State<CajaPage> {
   }
 
   Future<void> _cerrarCaja() async {
-    if (_cajaAbierta == null) return;
-    final confirmar = await showDialog<bool>(
+  if (_cajaAbierta == null) return;
+
+  final confirmar = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Row(children: [
+        Icon(Icons.lock_outline, color: Colors.red),
+        SizedBox(width: 8),
+        Text('Cerrar caja'),
+      ]),
+      content: const Text('¿Estás segura de cerrar la caja?\nSe calculará el resumen del turno.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('Cerrar caja', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmar != true) return;
+  setState(() => _cargando = true);
+
+  final resultado = await CajaService.cerrarCaja(_cajaAbierta!['id']);
+
+  if (resultado['success'] == true && mounted) {
+    // Mostrar resumen del turno
+    final baseInicial     = (resultado['base_inicial']      as num?)?.toDouble() ?? 0;
+    final totalVentas     = (resultado['total_ventas']      as num?)?.toDouble() ?? 0;
+    final totalEnCaja     = (resultado['total_en_caja']     as num?)?.toDouble() ?? 0;
+    final cantFacturas    = resultado['cantidad_facturas']   as int? ?? 0;
+
+    await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar caja'),
-        content: const Text('¿Estás segura de cerrar la caja?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.check_circle, color: Colors.green, size: 28),
+          SizedBox(width: 8),
+          Text('Resumen del turno'),
+        ]),
+        content: SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _resumenFila('Base inicial', '\$${baseInicial.toStringAsFixed(2)}', Colors.grey),
+              const Divider(),
+              _resumenFila('Facturas emitidas', '$cantFacturas facturas', Colors.blue),
+              _resumenFila('Ventas del turno', '\$${totalVentas.toStringAsFixed(2)}', Colors.green),
+              const Divider(),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('TOTAL EN CAJA',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text('\$${totalEnCaja.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.green)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Base \$${baseInicial.toStringAsFixed(2)} + Ventas \$${totalVentas.toStringAsFixed(2)} = \$${totalEnCaja.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Cerrar caja', style: TextStyle(color: Colors.white)),
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Entendido', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
-    if (confirmar != true) return;
-    setState(() => _cargando = true);
-    final resultado = await CajaService.cerrarCaja(_cajaAbierta!['id']);
-    if (resultado['success'] == true) {
-      _mostrarMensaje('Caja cerrada exitosamente');
-      await _cargarEstadoCaja();
-    } else {
-      setState(() => _cargando = false);
-      _mostrarMensaje(resultado['message'] ?? 'Error al cerrar caja', isError: true);
-    }
+
+    await _cargarEstadoCaja();
+  } else {
+    setState(() => _cargando = false);
+    _mostrarMensaje(resultado['message'] ?? 'Error al cerrar caja', isError: true);
   }
+}
+
+// Helper para filas del resumen
+Widget _resumenFila(String label, String valor, Color colorValor) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+        Text(valor, style: TextStyle(
+            fontSize: 14, fontWeight: FontWeight.w600, color: colorValor)),
+      ],
+    ),
+  );
+}
 
   Future<void> _actualizarEfectivo() async {
     if (_cajaAbierta == null) return;

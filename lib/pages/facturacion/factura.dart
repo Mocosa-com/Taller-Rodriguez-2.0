@@ -48,6 +48,7 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
   void dispose() {
     _busquedaController.dispose();
     _descuentoController.dispose();
+    _pagoController.dispose();
     super.dispose();
   }
 
@@ -68,6 +69,82 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
     if (!_clienteTieneNit) return 'El cliente seleccionado no tiene NIT registrado. Agregue el NIT en la seccion de Clientes para emitir Credito Fiscal.';
     return null;
   }
+
+  Widget _buildCalculadoraCambio() {
+  return StatefulBuilder(
+    builder: (context, setLocalState) {
+      final pago  = double.tryParse(_pagoController.text) ?? 0;
+      final cambio = pago - _total;
+
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9F9F9),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Calculadora de cambio',
+                style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _pagoController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    prefixText: '\$',
+                    hintText: 'Monto recibido',
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 10),
+                  ),
+                  onChanged: (_) => setLocalState(() {}),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text('CAMBIO',
+                      style: TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(
+                    pago == 0
+                        ? '—'
+                        : cambio >= 0
+                            ? '\$${cambio.toStringAsFixed(2)}'
+                            : '-\$${cambio.abs().toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: pago == 0
+                          ? Colors.grey
+                          : cambio >= 0
+                              ? Colors.green
+                              : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ]),
+            if (pago > 0 && cambio < 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Faltan \$${cambio.abs().toStringAsFixed(2)} para completar el pago',
+                  style: const TextStyle(fontSize: 11, color: Colors.red),
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   Future<void> _cargarDatosIniciales() async {
     setState(() => _cargando = true);
@@ -588,21 +665,27 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
         ),
         const SizedBox(height: 16),
         
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: _cargando ? null : _procesarFactura,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE53935),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text(
-              _cargando ? "Procesando..." : "Procesar Factura",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, fontFamily: 'Itim'),
-            ),
-          ),
-        ),
+        // ── Calculadora de cambio ──────────────────────────
+_buildCalculadoraCambio(),
+const SizedBox(height: 12),
+
+SizedBox(
+  width: double.infinity,
+  height: 52,
+  child: ElevatedButton(
+    onPressed: _cargando ? null : _procesarFactura,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFFE53935),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    child: Text(
+      _cargando ? "Procesando..." : "Procesar Factura",
+      style: const TextStyle(
+          fontSize: 18, fontWeight: FontWeight.bold,
+          color: Colors.white, fontFamily: 'Itim'),
+    ),
+  ),
+),
       ],
     );
   }
@@ -749,6 +832,7 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
     final int stockDisponible = stock ?? 0;
     final bool puedeAumentar = !isServicio && cantidad < stockDisponible;
     final bool puedeReducir = cantidad > 1;
+    final TextEditingController _pagoController = TextEditingController();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

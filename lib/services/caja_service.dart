@@ -49,21 +49,58 @@ class CajaService {
     }
   }
 
-  // Cierra la caja actual
-  static Future<Map<String, dynamic>> cerrarCaja(int idCaja, {String? observacion}) async {
-    try {
-      await _client.from('apertura_cierre').update({
-        'estado': 'Cerrada',
-        'hora_cierre': DateTime.now().toIso8601String().split('T')[1].substring(0, 8),
-        'total_cierre': null, // se puede calcular después
-        if (observacion != null) 'observacion': observacion,
-      }).eq('id', idCaja);
+  
+  static Future<Map<String, dynamic>> cerrarCaja(int idCaja) async {
+  try {
+    // Obtener datos de la caja para calcular ventas del turno
+    final cajaData = await _client
+        .from('apertura_cierre')
+        .select('fecha, hora_apertura, base_inicial')
+        .eq('id', idCaja)
+        .single();
 
-      return {'success': true};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
+    final fecha       = cajaData['fecha']?.toString() ?? '';
+    final horaApertura = cajaData['hora_apertura']?.toString() ?? '00:00:00';
+    final baseInicial = (cajaData['base_inicial'] as num?)?.toDouble() ?? 0;
+
+    // Calcular ventas desde apertura hasta ahora
+    final inicioCaja = DateTime.tryParse('${fecha}T$horaApertura') 
+                    ?? DateTime.now().subtract(const Duration(hours: 8));
+
+    final facturas = await _client
+        .from('facturacion')
+        .select('total')
+        .gte('fecha', inicioCaja.toIso8601String());
+
+    double totalVentas = 0;
+    int cantidadFacturas = facturas.length;
+    for (final f in facturas) {
+      totalVentas += (f['total'] as num?)?.toDouble() ?? 0;
     }
+
+    final totalEnCaja    = baseInicial + totalVentas;
+    final horaCierre     = DateTime.now()
+        .toIso8601String().split('T')[1].substring(0, 8);
+
+    await _client.from('apertura_cierre').update({
+      'estado'           : 'Cerrada',
+      'hora_cierre'      : horaCierre,
+      'total_cierre'     : totalEnCaja,
+      'total_ventas'     : totalVentas,
+      'cantidad_facturas': cantidadFacturas,
+    }).eq('id', idCaja);
+
+    return {
+      'success'           : true,
+      'base_inicial'      : baseInicial,
+      'total_ventas'      : totalVentas,
+      'total_en_caja'     : totalEnCaja,
+      'cantidad_facturas' : cantidadFacturas,
+    };
+  } catch (e) {
+    return {'success': false, 'message': e.toString()};
   }
+}
 
   // Actualiza el efectivo actual
   static Future<Map<String, dynamic>> actualizarEfectivo(int idCaja, double efectivo) async {
