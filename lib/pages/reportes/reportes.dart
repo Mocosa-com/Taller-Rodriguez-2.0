@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:taller_rodriguez/services/reporte_service.dart';
 import 'package:taller_rodriguez/widgets/navigation/sidebar.dart';
 
 class ReportesScreen extends StatefulWidget {
@@ -8,6 +9,7 @@ class ReportesScreen extends StatefulWidget {
 
   @override
   State<ReportesScreen> createState() => _ReportesScreenState();
+   
 }
 
 class _ReportesScreenState extends State<ReportesScreen> {
@@ -16,6 +18,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
   String _filtroSeleccionado = 'Este mes';
   final List<String> _filtros = ['Este mes', 'Última semana', 'Este año'];
   bool _cargando = true;
+
+  List<Map<String, dynamic>> _reportesGuardados = [];
 
   // KPIs
   double _ventasDia = 0;
@@ -74,11 +78,25 @@ class _ReportesScreenState extends State<ReportesScreen> {
         _cargarStockBajo(),
         _cargarMasVendidos(),
         _cargarDonut(),
+        _cargarReportesGuardados(),
+
       ]);
     } catch (e) {
       debugPrint('Error cargando reportes: $e');
     } finally {
       if (mounted) setState(() => _cargando = false);
+    }
+  }
+
+Future<void> _cargarReportesGuardados() async {
+    try {
+      final data = await _db
+          .from('reportes')
+          .select()
+          .order('fecha', ascending: false);
+      _reportesGuardados = List<Map<String, dynamic>>.from(data);
+    } catch (_) {
+      _reportesGuardados = [];
     }
   }
 
@@ -285,14 +303,168 @@ class _ReportesScreenState extends State<ReportesScreen> {
         _pctProductos = (totalProd / total) * 100;
         _pctServicios = (totalServ / total) * 100;
       }
-    } catch (_) {}
+} catch (_) {}
+}
+
+Widget _buildGrupoReportes(String tipo, IconData icon, Color color) {
+  final lista = _reportesGuardados
+      .where((r) => r['tipo'] == tipo)
+      .toList();
+  if (lista.isEmpty) return const SizedBox();
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const SizedBox(height: 12),
+      Row(children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Text(
+          tipo == 'empleado' ? 'Empleados' : 'Clientes',
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color),
+        ),
+      ]),
+      const SizedBox(height: 8),
+      ...lista.map((r) => _buildReporteItem(r)),
+    ],
+  );
+}
+
+Widget _buildReporteItem(Map<String, dynamic> r) {
+  final fecha = r['fecha'] != null
+      ? DateTime.tryParse(r['fecha'].toString())
+      : null;
+  final fechaStr = fecha != null
+      ? '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}'
+      : '—';
+  final tipo = r['tipo']?.toString() ?? '';
+  final color = tipo == 'empleado' ? coral : teal;
+  final notas = r['notas']?.toString() ?? '';
+
+  return Container(
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: tipo == 'empleado'
+          ? const Color(0xFFFAECE7)
+          : const Color(0xFFE1F5EE),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(
+        color: color.withOpacity(0.2),
+        width: 0.5,
+      ),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            tipo == 'empleado' ? Icons.assignment_ind : Icons.assignment,
+            color: color,
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      r['nombre_referencia']?.toString() ?? '—',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(fechaStr,
+                      style: const TextStyle(
+                          fontSize: 11, color: Colors.grey)),
+                ],
+              ),
+              if (notas.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  notas,
+                  style: const TextStyle(
+                      fontSize: 12, color: Colors.black54),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              if (r['creado_por'] != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Por: ${r['creado_por']}',
+                  style:
+                      const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ],
+            ],
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline,
+              size: 18, color: Colors.grey),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'Eliminar reporte',
+          onPressed: () async {
+            await ReporteService.eliminar(r['id'] as int);
+            _cargarDatos();
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildReportesGuardados() {
+  if (_reportesGuardados.isEmpty) {
+    return const SizedBox();
   }
 
+  return _Card(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _CardTitle('Reportes guardados'),
+
+        _buildGrupoReportes(
+          'empleado',
+          Icons.assignment_ind,
+          coral,
+        ),
+
+        _buildGrupoReportes(
+          'cliente',
+          Icons.assignment,
+          teal,
+        ),
+      ],
+    ),
+  );
+}
+ 
   static const Color purple = Color(0xFF7F77DD);
   static const Color teal   = Color(0xFF1D9E75);
   static const Color coral  = Color(0xFFD85A30);
   static const Color bgPage = Color(0xFFF4F3F7);
   static const Color border = Color(0xFFE0DCED);
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -331,6 +503,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
                             _buildMainRow(),
                             const SizedBox(height: 16),
                             _buildBottomRow(),
+                             const SizedBox(height: 16),
+                            _buildReportesGuardados(),
                             const SizedBox(height: 20),
                           ],
                         ),

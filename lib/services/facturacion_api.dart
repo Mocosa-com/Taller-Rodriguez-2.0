@@ -8,7 +8,7 @@ class FacturacionApi {
     try {
       final data = await _db
           .from('clientes')
-          .select('id, nombre, nit, dui')
+          .select('id, nombre, nit, nrc, dui')
           .eq('activo', true)
           .order('nombre');
       return List<Map<String, dynamic>>.from(data);
@@ -197,7 +197,7 @@ class FacturacionApi {
 
         await _db.from('detalles_factura').insert({
           'id_factura': idFactura,
-          'id_producto': item['id_producto']?.toString() ?? '',
+          'id_producto': int.tryParse(item['id_producto']?.toString() ?? '') ?? item['id_producto'],
           'nombre_producto': item['nombre']?.toString() ?? '',
           'tipo_producto': esProducto ? 'Producto' : 'Servicio',
           'cantidad': cantidad,
@@ -240,6 +240,19 @@ class FacturacionApi {
         }
       }
 
+      // Buscar datos completos del cliente para el PDF
+      Map<String, dynamic>? clienteData;
+      if (idCliente != null) {
+        try {
+          final cRow = await _db
+              .from('clientes')
+              .select('id, nombre, nit, nrc, dui')
+              .eq('id', idCliente)
+              .single();
+          clienteData = Map<String, dynamic>.from(cRow);
+        } catch (_) {}
+      }
+
       return {
         'success': true,
         'id': idFactura,
@@ -248,6 +261,9 @@ class FacturacionApi {
         'factura': {
           ...facturaInsertada,
           'items': items,
+          'cliente': clienteData,
+          'numero_factura': idFactura,
+          'tipo_factura': tipoFactura,
         },
       };
     } catch (e) {

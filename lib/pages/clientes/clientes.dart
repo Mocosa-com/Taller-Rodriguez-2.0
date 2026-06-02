@@ -5,6 +5,7 @@ import 'package:taller_rodriguez/widgets/inputs/select.dart';
 import 'package:taller_rodriguez/widgets/modals/agregar_cliente_modal.dart';
 import 'package:taller_rodriguez/models/cliente.dart';
 import 'package:taller_rodriguez/services/cliente_service.dart';
+import 'package:taller_rodriguez/services/reporte_service.dart';
 
 class ClientesPage extends StatefulWidget {
   const ClientesPage({super.key});
@@ -82,30 +83,118 @@ class _ClientesPageState extends State<ClientesPage> {
     }
   }
 
-  Future<void> _reportarCliente(Cliente c) async {
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reportar cliente'),
-        content: Text('¿Deseas generar un reporte para ${c.nombre}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              // TODO: implementar lógica de reporte
-            },
-            style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF1A6B3A)),
-            child: const Text('Generar reporte'),
-          ),
-        ],
+Future<void> _reportarCliente(Cliente c) async {
+  final TextEditingController _notasCtrl = TextEditingController();
+
+  final confirmar = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(children: [
+        const Icon(Icons.assignment, color: Color(0xFF1A6B3A)),
+        const SizedBox(width: 8),
+        Expanded(child: Text('Reporte — ${c.nombre}',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+      ]),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Info del cliente
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _infoRow(Icons.person, 'Nombre', c.nombre),
+                  _infoRow(Icons.phone, 'Teléfono',
+                      c.telefono.isNotEmpty ? c.telefono : 'N/A'),
+                  _infoRow(Icons.badge, 'DUI',
+                      c.dui.isNotEmpty ? c.dui : 'N/A'),
+                  if (c.nrc?.isNotEmpty == true)
+                    _infoRow(Icons.receipt_long, 'NRC', c.nrc!),
+                  if (c.nit?.isNotEmpty == true)
+                    _infoRow(Icons.numbers, 'NIT', c.nit!),
+                  _infoRow(Icons.repeat, 'Frecuencia', c.frecuenciaVisita),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text('Notas del reporte',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _notasCtrl,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Escribe observaciones, motivo del reporte...',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () => Navigator.pop(ctx, true),
+          icon: const Icon(Icons.save, size: 16),
+          label: const Text('Guardar reporte'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1A6B3A),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmar == true) {
+    final exito = await ReporteService.guardarReporte(
+      tipo: 'cliente',
+      idReferencia: c.id!,
+      nombreReferencia: c.nombre,
+      notas: _notasCtrl.text.trim(),
+      creadoPor: 'Sistema',
     );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(exito
+            ? 'Reporte de ${c.nombre} guardado ✓'
+            : 'Error al guardar el reporte'),
+        backgroundColor: exito ? const Color(0xFF1A6B3A) : Colors.red,
+      ));
+    }
   }
+}
+
+Widget _infoRow(IconData icon, String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(children: [
+      Icon(icon, size: 14, color: Colors.grey),
+      const SizedBox(width: 6),
+      Text('$label: ', style: const TextStyle(
+          fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
+      Expanded(child: Text(value,
+          style: const TextStyle(fontSize: 12),
+          overflow: TextOverflow.ellipsis)),
+    ]),
+  );
+}
 
   @override
   Widget build(BuildContext context) {

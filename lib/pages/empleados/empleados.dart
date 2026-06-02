@@ -4,6 +4,7 @@ import 'package:taller_rodriguez/widgets/inputs/busqueda.dart';
 import 'package:taller_rodriguez/widgets/modals/agregar_empleado_modal.dart';
 import 'package:taller_rodriguez/models/empleado_back.dart';
 import 'package:taller_rodriguez/services/empleado_service.dart';
+import 'package:taller_rodriguez/services/reporte_service.dart';
 
 class EmpleadosPage extends StatefulWidget {
   const EmpleadosPage({super.key});
@@ -82,30 +83,120 @@ class _EmpleadosPageState extends State<EmpleadosPage> {
     }
   }
 
-  Future<void> _reportarEmpleado(Empleado empleado) async {
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reportar empleado'),
-        content: Text('¿Deseas generar un reporte para ${empleado.nombre}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              // TODO: implementar lógica de reporte
-            },
-            style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF1A6B3A)),
-            child: const Text('Generar reporte'),
-          ),
-        ],
+Future<void> _reportarEmpleado(Empleado e) async {
+  final TextEditingController _notasCtrl = TextEditingController();
+
+  final confirmar = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(children: [
+        const Icon(Icons.assignment_ind, color: Color(0xFF1A6B3A)),
+        const SizedBox(width: 8),
+        Expanded(child: Text('Reporte — ${e.nombre}',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+      ]),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Info del empleado
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _infoRow(Icons.person, 'Nombre', e.nombre),
+                  _infoRow(Icons.phone, 'Teléfono',
+                      e.telefono.isNotEmpty ? e.telefono : 'N/A'),
+                  _infoRow(Icons.badge, 'DUI',
+                      e.dui.isNotEmpty ? e.dui : 'N/A'),
+                  _infoRow(Icons.work, 'Cargo',
+                      e.cargo.isNotEmpty ? e.cargo : 'N/A'),
+                  _infoRow(Icons.attach_money, 'Sueldo',
+                      '\$${e.sueldoBase.toStringAsFixed(2)}'),
+                  if (e.porcentajeGanancia != null)
+                    _infoRow(Icons.percent, 'Porcentaje',
+                        '${e.porcentajeGanancia!.toStringAsFixed(0)}%'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text('Notas del reporte',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _notasCtrl,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Escribe observaciones, motivo del reporte...',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () => Navigator.pop(ctx, true),
+          icon: const Icon(Icons.save, size: 16),
+          label: const Text('Guardar reporte'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1A6B3A),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmar == true) {
+    final exito = await ReporteService.guardarReporte(
+      tipo: 'empleado',
+      idReferencia: e.id!,
+      nombreReferencia: e.nombre,
+      notas: _notasCtrl.text.trim(),
+      creadoPor: 'Sistema',
     );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(exito
+            ? 'Reporte de ${e.nombre} guardado ✓'
+            : 'Error al guardar el reporte'),
+        backgroundColor: exito ? const Color(0xFF1A6B3A) : Colors.red,
+      ));
+    }
   }
+}
+
+Widget _infoRow(IconData icon, String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(children: [
+      Icon(icon, size: 14, color: Colors.grey),
+      const SizedBox(width: 6),
+      Text('$label: ', style: const TextStyle(
+          fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
+      Expanded(child: Text(value,
+          style: const TextStyle(fontSize: 12),
+          overflow: TextOverflow.ellipsis)),
+    ]),
+  );
+}
 
   List<Empleado> get _empleadosFiltrados {
     final query = _searchController.text.toLowerCase();
