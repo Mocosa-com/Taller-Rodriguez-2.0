@@ -314,15 +314,15 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
     setState(() => _cargando = false);
     
     if (resultado != null && resultado['success'] == true) {
-    
+      try {
         final _raw = resultado['factura'] ?? resultado;
         final facturaData = _deepConvert(_raw);
         final montoPagoTexto = _pagoController.text.trim();
-      
+
         final montoPago = montoPagoTexto.isNotEmpty
             ? (double.tryParse(montoPagoTexto) ?? _total)
             : _total;
-      
+
         if (!facturaData.containsKey('total') || (facturaData['total'] as num? ?? 0) == 0) {
           facturaData['total'] = _total;
         }

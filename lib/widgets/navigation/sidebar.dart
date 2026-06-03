@@ -21,24 +21,20 @@ class Sidebar extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 20),
-              // Logo
               MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: GestureDetector(
                   onTap: () => Navigator.pushNamed(context, '/dashboard'),
-                  child: Image.asset('assets/logo_taller.png', width: 130, height: 130),
+                  child: Image.asset('assets/logo_taller.png',
+                      width: 130, height: 130),
                 ),
               ),
               const SizedBox(height: 10),
-
-              // Items del menú
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(children: _buildMenuItems(context)),
                 ),
               ),
-
-              // Perfil al final
               _buildPerfilItem(context),
               const SizedBox(height: 15),
             ],
@@ -49,10 +45,9 @@ class Sidebar extends StatelessWidget {
   }
 
   List<Widget> _buildMenuItems(BuildContext context) {
-    final items = _getVisibleItems();
-
-    return items.map((item) {
-      final isSelected = ModalRoute.of(context)?.settings.name == item.ruta;
+    return _getVisibleItems().map((item) {
+      final isSelected =
+          ModalRoute.of(context)?.settings.name == item.ruta;
       return Column(
         children: [
           SidebarElement(
@@ -68,10 +63,11 @@ class Sidebar extends StatelessWidget {
   }
 
   Widget _buildPerfilItem(BuildContext context) {
-    final userData = SessionService.currentUser ?? {};
-    final fotoUrl = userData['foto_url'] as String?;
-    final nombre = userData['nombre'] as String? ?? 'Mi perfil';
-    final isSelected = ModalRoute.of(context)?.settings.name == '/perfil';
+    final userData  = SessionService.currentUser ?? {};
+    final fotoUrl   = userData['foto_url'] as String?;
+    final nombre    = userData['nombre'] as String? ?? 'Mi perfil';
+    final isSelected =
+        ModalRoute.of(context)?.settings.name == '/perfil';
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -105,16 +101,29 @@ class Sidebar extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  nombre,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isSelected
-                        ? const Color.fromARGB(255, 242, 51, 13)
-                        : Colors.black,
-                    fontFamily: 'Itim',
-                    fontSize: 17,
-                  ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nombre,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isSelected
+                            ? const Color.fromARGB(255, 242, 51, 13)
+                            : Colors.black,
+                        fontFamily: 'Itim',
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      _labelRol(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -124,30 +133,35 @@ class Sidebar extends StatelessWidget {
     );
   }
 
-  // ==================== LÓGICA DE PERMISOS ====================
+  // ── Lógica de visibilidad por rol ────────────────────────────────
   List<_ItemData> _getVisibleItems() {
-    final allItems = [
-      _ItemData('Vehiculos taller', 'coche', '/vehiculos'),
-      _ItemData('Caja', 'caja', '/caja'),
-      _ItemData('Clientes', 'cliente', '/clientes'),
-      _ItemData('Ofertas', 'ofertas', '/ofertas'),
-      _ItemData('Facturacion', 'facturacion', '/facturacion'),
-      _ItemData('Inventario', 'inventario', '/inventario'),
-      _ItemData('Proveedores', 'proveedores', '/proveedores'),
-      _ItemData('Empleados', 'empleados', '/empleados'),
-      _ItemData('Reportes', 'reportes', '/reportes'),
+    const all = [
+      _ItemData('Vehiculos taller', 'coche',       '/vehiculos'),
+      _ItemData('Caja',             'caja',         '/caja'),
+      _ItemData('Clientes',         'cliente',      '/clientes'),
+      _ItemData('Ofertas',          'ofertas',      '/ofertas'),
+      _ItemData('Facturacion',      'facturacion',  '/facturacion'),
+      _ItemData('Inventario',       'inventario',   '/inventario'),
+      _ItemData('Proveedores',      'proveedores',  '/proveedores'),
+      _ItemData('Empleados',        'empleados',    '/empleados'),
+      _ItemData('Reportes',         'reportes',     '/reportes'),
     ];
 
-    if (SessionService.esAdmin || SessionService.esSecretaria) {
-      return allItems;
-    }
+    return all
+        .where((i) => SessionService.puedeAcceder(i.ruta))
+        .toList();
+  }
 
-    // Solo mecánicos/empleados
-    return allItems.where((i) => i.ruta == '/vehiculos').toList();
+  String _labelRol() {
+    if (SessionService.esRoot)       return 'Root';
+    if (SessionService.esAdmin)      return 'Administrador';
+    if (SessionService.esSecretaria) return 'Secretaria';
+    if (SessionService.esMecanico)   return 'Mecánico';
+    return '';
   }
 }
 
-// ==================== Drawer para móvil ====================
+// ── Drawer para móvil ────────────────────────────────────────────
 class SidebarDrawerContent extends StatelessWidget {
   const SidebarDrawerContent({super.key});
 
@@ -161,7 +175,8 @@ class SidebarDrawerContent extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: GestureDetector(
                 onTap: () => Navigator.pushNamed(context, '/dashboard'),
-                child: Image.asset('assets/logo_taller.png', width: 130, height: 130),
+                child: Image.asset('assets/logo_taller.png',
+                    width: 130, height: 130),
               ),
             ),
             Expanded(
@@ -178,24 +193,23 @@ class SidebarDrawerContent extends StatelessWidget {
   }
 
   List<Widget> _buildDrawerItems(BuildContext context) {
-    final items = Sidebar()._getVisibleItems(); // Reutilizamos la lógica
-
-    return items.map((item) {
+    return Sidebar()._getVisibleItems().map((item) {
       return SidebarElement(
         nombre: item.nombre,
         icono: item.icono,
-        seleccionado: ModalRoute.of(context)?.settings.name == item.ruta,
+        seleccionado:
+            ModalRoute.of(context)?.settings.name == item.ruta,
         ruta: item.ruta,
       );
     }).toList();
   }
 
   Widget _buildPerfilDrawerItem(BuildContext context) {
-    // Mismo código que en _buildPerfilItem (podemos extraer a un widget común después)
-    final userData = SessionService.currentUser ?? {};
-    final fotoUrl = userData['foto_url'] as String?;
-    final nombre = userData['nombre'] as String? ?? 'Mi perfil';
-    final isSelected = ModalRoute.of(context)?.settings.name == '/perfil';
+    final userData  = SessionService.currentUser ?? {};
+    final fotoUrl   = userData['foto_url'] as String?;
+    final nombre    = userData['nombre'] as String? ?? 'Mi perfil';
+    final isSelected =
+        ModalRoute.of(context)?.settings.name == '/perfil';
 
     return GestureDetector(
       onTap: () => Navigator.pushNamed(context, '/perfil'),
@@ -204,7 +218,8 @@ class SidebarDrawerContent extends StatelessWidget {
             ? BoxDecoration(
                 color: const Color.fromRGBO(251, 238, 236, 1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color.fromARGB(255, 251, 219, 212)),
+                border: Border.all(
+                    color: const Color.fromARGB(255, 251, 219, 212)),
               )
             : null,
         width: double.infinity,
@@ -228,7 +243,9 @@ class SidebarDrawerContent extends StatelessWidget {
                 nombre,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: isSelected ? const Color.fromARGB(255, 242, 51, 13) : Colors.black,
+                  color: isSelected
+                      ? const Color.fromARGB(255, 242, 51, 13)
+                      : Colors.black,
                   fontFamily: 'Itim',
                   fontSize: 18,
                 ),

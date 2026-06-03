@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_controller.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:taller_rodriguez/services/session_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,47 +14,37 @@ class _LoginPageState extends State<LoginPage> {
   bool _cargando = false;
   String _mensaje = '';
 
-Future<void> _login() async {
-  setState(() {
-    _cargando = true;
-    _mensaje = '';
-  });
+  Future<void> _login() async {
+    setState(() {
+      _cargando = true;
+      _mensaje = '';
+    });
 
-  try {
-    final response = await Supabase.instance.client
-        .from('empleados')
-        .select()
-        .or('nombre.eq.${_usuarioController.text.trim()},dui.eq.${_usuarioController.text.trim()}')
-        .eq('contrasena', _contrasenaController.text.trim())
-        .eq('estado', true)
-        .limit(1);
+    try {
+      final response = await AuthController.login(
+        _usuarioController.text.trim(),
+        _contrasenaController.text.trim(),
+      );
 
-    if (response.isNotEmpty) {
-      final user = response.first;
-
-      // Guardar sesión del usuario
-      SessionService.iniciar(user);
-
+      if (response['success'] == true) {
+        setState(() {
+          _mensaje = response['message'] ?? '¡Bienvenido!';
+          _cargando = false;
+        });
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      } else {
+        setState(() {
+          _mensaje = response['message'] ?? 'Usuario o contraseña incorrectos';
+          _cargando = false;
+        });
+      }
+    } catch (e) {
       setState(() {
-        _mensaje = '¡Bienvenido ${user['nombre']}!';
-        _cargando = false;
-      });
-
-      Navigator.pushReplacementNamed(context, '/dashboard');
-    } else {
-      setState(() {
-        _mensaje = 'Usuario, DUI o contraseña incorrectos';
+        _mensaje = 'Error de conexión. Inténtalo de nuevo.';
         _cargando = false;
       });
     }
-  } catch (e) {
-    setState(() {
-      _mensaje = 'Error de conexión. Inténtalo de nuevo.';
-      _cargando = false;
-    });
-    
   }
-}
 
   @override
   Widget build(BuildContext context) {

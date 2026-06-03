@@ -1,18 +1,37 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:taller_rodriguez/services/session_service.dart';
-
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'session_service.dart';
 
 class SupabaseService {
-  
   static final _client = Supabase.instance.client;
 
- 
+  // ── Credenciales root (acceso local, no va a Supabase) ──────────
+  static const String _rootUsuario   = 'root';
+  static const String _rootContrasena = 'root1234';
+
+  // ── Login ────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> login(
     String usuario,
     String contrasena,
   ) async {
+    // Chequeo root antes de tocar la red
+    if (usuario.trim() == _rootUsuario &&
+        contrasena.trim() == _rootContrasena) {
+      final rootUser = {
+        'id': 0,
+        'nombre': 'Root',
+        'cargo': 'root',
+        'estado': true,
+        'foto_url': null,
+      };
+      await SessionService.iniciar(rootUser);
+      return {
+        'success': true,
+        'message': '¡Bienvenido Root!',
+        'empleado': rootUser,
+      };
+    }
+
+    // Login normal contra Supabase
     try {
       final response = await _client
           .from('empleados')
@@ -24,22 +43,19 @@ class SupabaseService {
 
       if (response.isNotEmpty) {
         final user = response.first;
-
-        SessionService.iniciar(user);
-
+        await SessionService.iniciar(user);
         return {
           'success': true,
           'message': '¡Bienvenido ${user['nombre']}!',
           'empleado': user,
         };
-      } else {
-        return {
-          'success': false,
-          'message': 'Usuario o contraseña incorrectos',
-        };
       }
+
+      return {
+        'success': false,
+        'message': 'Usuario o contraseña incorrectos',
+      };
     } catch (e) {
-      print('Error en login: $e');
       return {
         'success': false,
         'message': 'Error de conexión',
@@ -47,7 +63,7 @@ class SupabaseService {
     }
   }
 
-
+  // ── Registrar administrador ──────────────────────────────────────
   static Future<Map<String, dynamic>> registrarAdmin(
     Map<String, dynamic> datos,
   ) async {
@@ -56,9 +72,11 @@ class SupabaseService {
           .from('empleados')
           .insert({
             'nombre': datos['nombre'],
-            'dui': datos['dui'] ?? 'TEMP-${DateTime.now().millisecondsSinceEpoch}',
+            'dui': datos['dui'] ??
+                'TEMP-${DateTime.now().millisecondsSinceEpoch}',
             'telefono': datos['telefono'] ?? '00000000',
-            'fecha_contratacion': DateTime.now().toIso8601String().split('T')[0],
+            'fecha_contratacion':
+                DateTime.now().toIso8601String().split('T')[0],
             'sueldo_base': datos['sueldo_base'] ?? 0,
             'contrasena': datos['contrasena'],
             'cargo': 'Administrador',
@@ -74,7 +92,6 @@ class SupabaseService {
         'data': response,
       };
     } catch (e) {
-      print('Error al registrar admin: $e');
       return {
         'success': false,
         'message': 'Error al registrar',

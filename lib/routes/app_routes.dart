@@ -32,43 +32,43 @@ class AppRoutes {
   static const String reportes          = '/reportes';
   static const String historialFacturas = '/historialFacturas';
 
+  // ── Ruta de inicio por rol ──────────────────────────────────────
+  static String get _rutaInicioRol {
+    if (SessionService.esMecanico) return vehiculos;
+    return home;
+  }
 
-static const _rutasEmpleado = {
-  vehiculos, perfil, home, login
-};
+  // ── Generador de rutas con control de acceso ────────────────────
+  static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+    final name = settings.name ?? login;
 
-static const _rutasSecretaria = {
-  vehiculos, perfil, home, login,
-  clientes, facturacion, historialFacturas, caja, historialTurnos, reportes
-};
-static Route<dynamic> onGenerateRoute(RouteSettings settings) {
-  final name = settings.name ?? login;
-
-  if (SessionService.rolActual.isNotEmpty) {
-
-    if (SessionService.esMecanico) {
-      const rutasMecanico = {vehiculos, perfil, home, login};
-      if (!rutasMecanico.contains(name)) {
-        return MaterialPageRoute(
-          builder: (_) => const VehiculosPage(),
-          settings: const RouteSettings(name: vehiculos),
-        );
-      }
+    // Sin sesión → solo puede ir a login
+    if (SessionService.rolActual.isEmpty) {
+      return _ir(const LoginPage(), login);
     }
 
+    // Ruta no permitida para el rol actual → redirigir a inicio del rol
+    if (!SessionService.puedeAcceder(name)) {
+      final inicio = _rutaInicioRol;
+      final builder = _builders[inicio]!;
+      return MaterialPageRoute(
+        builder: builder,
+        settings: RouteSettings(name: inicio),
+      );
+    }
 
+    // Facturación requiere caja abierta
     if (name == facturacion) {
       return MaterialPageRoute(
         builder: (context) => FutureBuilder<bool>(
           future: _verificarCajaAbierta(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()));
             }
-            if (snapshot.data == true) {
-              return const FacturacionScreen();
-            }
-       
+            if (snapshot.data == true) return const FacturacionScreen();
+
             WidgetsBinding.instance.addPostFrameCallback((_) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -78,44 +78,45 @@ static Route<dynamic> onGenerateRoute(RouteSettings settings) {
               );
               Navigator.pushReplacementNamed(context, caja);
             });
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return const Scaffold(
+                body: Center(child: CircularProgressIndicator()));
           },
         ),
         settings: settings,
       );
     }
+
+    final builder = _builders[name];
+    if (builder != null) {
+      return MaterialPageRoute(builder: builder, settings: settings);
+    }
+
+    return _ir(const LoginPage(), login);
   }
 
-  final builder = _builders[name];
-  if (builder != null) {
-    return MaterialPageRoute(builder: builder, settings: settings);
+  static Route<dynamic> _ir(Widget page, String name) =>
+      MaterialPageRoute(
+          builder: (_) => page, settings: RouteSettings(name: name));
+
+  static Future<bool> _verificarCajaAbierta() async {
+    final c = await CajaService.getCajaAbierta();
+    return c != null;
   }
-
-  return MaterialPageRoute(
-    builder: (_) => const LoginPage(),
-    settings: const RouteSettings(name: login),
-  );
-}
-
-static Future<bool> _verificarCajaAbierta() async {
-  final caja = await CajaService.getCajaAbierta();
-  return caja != null;
-}
 
   static final Map<String, WidgetBuilder> _builders = {
-    historialFacturas: (_) => const HistorialFacturasPage(),
     login:             (_) => const LoginPage(),
-    clientes:          (_) => const ClientesPage(),
     home:              (_) => const HomeScreen(),
     perfil:            (_) => const PerfilPage(),
+    clientes:          (_) => const ClientesPage(),
     ofertas:           (_) => const OfertasScreen(),
     facturacion:       (_) => const FacturacionScreen(),
+    historialFacturas: (_) => const HistorialFacturasPage(),
     inventario:        (_) => const InventarioPage(),
     caja:              (_) => const CajaPage(),
+    historialTurnos:   (_) => const HistorialTurnosPage(),
     empleados:         (_) => const EmpleadosPage(),
     vehiculos:         (_) => const VehiculosPage(),
     proveedores:       (_) => const ProveedoresScreen(),
-    historialTurnos:   (_) => const HistorialTurnosPage(),
     reportes:          (_) => const ReportesScreen(),
   };
 
